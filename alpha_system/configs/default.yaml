@@ -1,0 +1,100 @@
+project:
+  name: PEDC-Alpha
+  seed: 42
+data:
+  raw_dir: ../Final/stock_market_data
+  cache_dir: ./data_cache
+  markets:
+  - nasdaq
+  - nyse
+  - sp500
+  - forbes2000
+  max_stocks: 48
+  min_history_days: 750
+  features:
+  - Open
+  - High
+  - Low
+  - Close
+  - Volume
+  use_adjusted_close: true
+dataset:
+  seq_len_past: 30
+  seq_len_future: 10
+features:
+  ewma_span: 32
+  momentum_horizons:
+  - 1
+  - 5
+  - 21
+  - 63
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  target_clip: 20.0
+graph:
+  corr_window: 250
+  corr_threshold: 0.5
+news:
+  enabled: true
+  provider: google_news
+  max_headlines_per_symbol: 15
+  cache_days: 1
+  half_life_days: 2.0
+model:
+  d_channels: 64
+  mrt_layers: 2
+  heads_masked: 2
+  heads_free: 4
+  dropout: 0.1
+diffusion:
+  num_timesteps: 60
+  beta_start: 0.0001
+  beta_end: 0.2
+  schedule: linear
+  adaptive_noise_alpha: 0.7
+  ddim_steps: 15
+  num_samples: 16
+training:
+  batch_size: 16
+  lr: 0.0005
+  weight_decay: 0.0001
+  epochs_diffusion: 25
+  grad_clip: 1.0
+  val_ratio: 0.15
+  purge_gap: 40
+  patience: 6
+rl:
+  algo: ppo
+  hidden_dim: 128
+  layers: 2
+  lr: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  epochs_per_update: 4
+  entropy_coef: 0.003
+  value_coef: 0.5
+  steps_per_update: 512
+  total_updates: 150
+  resid_scale: 1.0
+  vol_target_annual: 0.15
+  max_leverage: 1.0
+  max_weight: 0.25
+  cost_bps: 5
+  drawdown_penalty: 2.0
+strategy:
+  mode: core_satellite
+  satellite_share: 0.2
+  bear_multiplier: 0.3
+  trend_window: 200
+  signal_ema: 5
+  w_rl: 0.55
+  w_diffusion: 0.35
+  w_momentum: 0.1
+  min_abs_signal: 0.05
+backtest:
+  cost_bps: 5
+  slippage_bps: 2
+paths:
+  outputs: ./outputs

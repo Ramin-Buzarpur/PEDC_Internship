@@ -1,0 +1,462 @@
+14:48:30 | INFO | train | device: cuda
+14:48:30 | INFO | train | loaded cached panels: T=13356, N=48
+14:48:31 | INFO | train | splits: train (0, 9268), val (9308, 11352), test (11352, 13356)
+14:48:32 | INFO | train | channels per stock: 6
+14:48:32 | INFO | train | MaTCHS parameters: 5,665,478
+14:48:59 | INFO | train | [diffusion] epoch 001 | train 0.12189 | val 0.08247 | 26s
+14:49:24 | INFO | train | [diffusion] epoch 002 | train 0.05267 | val 0.06617 | 50s
+14:49:48 | INFO | train | [diffusion] epoch 003 | train 0.04567 | val 0.06070 | 74s
+14:50:12 | INFO | train | [diffusion] epoch 004 | train 0.04228 | val 0.05736 | 98s
+14:50:36 | INFO | train | [diffusion] epoch 005 | train 0.03970 | val 0.05481 | 122s
+14:51:00 | INFO | train | [diffusion] epoch 006 | train 0.03632 | val 0.05112 | 146s
+14:51:24 | INFO | train | [diffusion] epoch 007 | train 0.03849 | val 0.05286 | 171s
+14:51:49 | INFO | train | [diffusion] epoch 008 | train 0.03750 | val 0.05211 | 195s
+14:52:13 | INFO | train | [diffusion] epoch 009 | train 0.03445 | val 0.04598 | 219s
+14:52:37 | INFO | train | [diffusion] epoch 010 | train 0.03445 | val 0.04732 | 243s
+14:53:01 | INFO | train | [diffusion] epoch 011 | train 0.03223 | val 0.04825 | 267s
+14:53:25 | INFO | train | [diffusion] epoch 012 | train 0.03141 | val 0.04364 | 292s
+14:53:50 | INFO | train | [diffusion] epoch 013 | train 0.03145 | val 0.04586 | 316s
+14:54:14 | INFO | train | [diffusion] epoch 014 | train 0.03059 | val 0.04199 | 340s
+14:54:38 | INFO | train | [diffusion] epoch 015 | train 0.02987 | val 0.04223 | 364s
+14:55:02 | INFO | train | [diffusion] epoch 016 | train 0.02965 | val 0.04252 | 388s
+14:55:27 | INFO | train | [diffusion] epoch 017 | train 0.02841 | val 0.04287 | 413s
+14:55:51 | INFO | train | [diffusion] epoch 018 | train 0.02789 | val 0.04037 | 437s
+14:56:15 | INFO | train | [diffusion] epoch 019 | train 0.02818 | val 0.03839 | 461s
+14:56:39 | INFO | train | [diffusion] epoch 020 | train 0.02637 | val 0.03675 | 485s
+14:57:04 | INFO | train | [diffusion] epoch 021 | train 0.02581 | val 0.03886 | 510s
+14:57:28 | INFO | train | [diffusion] epoch 022 | train 0.02561 | val 0.03593 | 534s
+14:57:52 | INFO | train | [diffusion] epoch 023 | train 0.02497 | val 0.03769 | 558s
+14:58:17 | INFO | train | [diffusion] epoch 024 | train 0.02514 | val 0.03583 | 583s
+14:58:42 | INFO | train | [diffusion] epoch 025 | train 0.02550 | val 0.03574 | 608s
+14:58:42 | INFO | train | saved diffusion model to ./outputs/models/matchs_diffusion.pt (best val loss 0.03574)
+14:58:42 | INFO | train | PPO state dim: 386, actions: 48
+14:58:43 | INFO | train | PPO update 1/120 | avg final equity 0.8373 | pi 0.1168 v 0.0015 H 44.121
+14:58:52 | INFO | train | PPO update 10/120 | avg final equity 0.8152 | pi -0.0087 v 0.0002 H 44.327
+14:59:01 | INFO | train | PPO update 20/120 | avg final equity 0.8300 | pi -0.0150 v 0.0002 H 44.477
+14:59:10 | INFO | train | PPO update 30/120 | avg final equity 0.8220 | pi -0.0075 v 0.0001 H 44.641
+14:59:20 | INFO | train | PPO update 40/120 | avg final equity 0.8142 | pi -0.0157 v 0.0001 H 44.801
+14:59:29 | INFO | train | PPO update 50/120 | avg final equity 0.8152 | pi -0.0115 v 0.0001 H 44.939
+14:59:38 | INFO | train | PPO update 60/120 | avg final equity 0.8540 | pi -0.0115 v 0.0001 H 45.100
+14:59:47 | INFO | train | PPO update 70/120 | avg final equity 0.8158 | pi -0.0139 v 0.0001 H 45.230
+14:59:56 | INFO | train | PPO update 80/120 | avg final equity 0.8362 | pi -0.0165 v 0.0001 H 45.345
+15:00:05 | INFO | train | PPO update 90/120 | avg final equity 0.8466 | pi -0.0141 v 0.0001 H 45.478
+15:00:14 | INFO | train | PPO update 100/120 | avg final equity 0.8446 | pi -0.0118 v 0.0000 H 45.635
+15:00:23 | INFO | train | PPO update 110/120 | avg final equity 0.8372 | pi -0.0200 v 0.0000 H 45.747
+15:00:32 | INFO | train | PPO update 120/120 | avg final equity 0.8254 | pi -0.0190 v 0.0001 H 45.900
+15:00:32 | INFO | train | PPO training finished in 109.7s
+15:00:32 | INFO | train | saved RL actor to ./outputs/models/ppo_actor.pt
+15:00:32 | INFO | train | training complete: 13356 days x 48 stocks | val loss 0.03574
+15:03:48 | INFO | train | device: cuda
+15:03:48 | INFO | train | loaded cached panels: T=13356, N=48
+15:05:13 | INFO | train | news sentiment ready (recent coverage 0% of stocks)
+15:05:15 | INFO | train | PPO state dim: 434, actions: 48
+15:05:17 | INFO | train | PPO update 1/150 | avg final equity 0.7713 | pi 0.2765 v 0.0028 H 20.121
+15:05:25 | INFO | train | PPO update 10/150 | avg final equity 0.8654 | pi -0.0118 v 0.0008 H 20.268
+15:05:33 | INFO | train | PPO update 20/150 | avg final equity 0.8594 | pi -0.0099 v 0.0003 H 20.458
+15:05:42 | INFO | train | PPO update 30/150 | avg final equity 0.8216 | pi -0.0147 v 0.0002 H 20.617
+15:05:51 | INFO | train | PPO update 40/150 | avg final equity 0.7661 | pi -0.0149 v 0.0008 H 20.762
+15:05:59 | INFO | train | PPO update 50/150 | avg final equity 0.8374 | pi -0.0138 v 0.0004 H 20.892
+15:06:08 | INFO | train | PPO update 60/150 | avg final equity 0.8179 | pi -0.0167 v 0.0003 H 21.125
+15:06:16 | INFO | train | PPO update 70/150 | avg final equity 0.8272 | pi -0.0154 v 0.0002 H 21.377
+15:06:25 | INFO | train | PPO update 80/150 | avg final equity 0.8762 | pi -0.0154 v 0.0003 H 21.599
+15:06:33 | INFO | train | PPO update 90/150 | avg final equity 0.8417 | pi -0.0160 v 0.0003 H 21.810
+15:06:42 | INFO | train | PPO update 100/150 | avg final equity 0.8336 | pi -0.0097 v 0.0004 H 22.019
+15:06:50 | INFO | train | PPO update 110/150 | avg final equity 0.8637 | pi -0.0222 v 0.0001 H 22.221
+15:06:59 | INFO | train | PPO update 120/150 | avg final equity 0.8045 | pi -0.0155 v 0.0001 H 22.395
+15:07:07 | INFO | train | PPO update 130/150 | avg final equity 0.8246 | pi -0.0215 v 0.0001 H 22.543
+15:07:16 | INFO | train | PPO update 140/150 | avg final equity 0.8993 | pi -0.0143 v 0.0004 H 22.749
+15:07:25 | INFO | train | PPO update 150/150 | avg final equity 0.8518 | pi -0.0242 v 0.0004 H 22.937
+15:07:25 | INFO | train | PPO training finished in 129.6s
+15:07:25 | INFO | train | saved RL actor to ./outputs/models/ppo_actor.pt
+15:07:25 | INFO | train | training complete: 13356 days x 48 stocks
+15:09:59 | INFO | train | device: cuda
+15:09:59 | INFO | train | loaded cached panels: T=13356, N=48
+15:09:59 | INFO | train | news sentiment ready (recent coverage 0% of stocks)
+15:10:02 | INFO | train | PPO state dim: 434, actions: 48
+15:10:02 | INFO | train | warm-starting policy toward momentum prior ...
+15:10:06 | INFO | train | post-warmstart val Sharpe -0.05 | equity 0.8635
+15:10:21 | INFO | train | PPO update 15/180 | train-eq 0.874 | val SR 0.05 eq 0.980 | H 20.19 *saved*
+15:10:36 | INFO | train | PPO update 30/180 | train-eq 0.788 | val SR -0.01 eq 0.922 | H 20.28
+15:10:51 | INFO | train | PPO update 45/180 | train-eq 0.755 | val SR -0.04 eq 0.912 | H 20.36
+15:11:05 | INFO | train | PPO update 60/180 | train-eq 0.773 | val SR 0.03 eq 0.979 | H 20.48
+15:11:20 | INFO | train | PPO update 75/180 | train-eq 0.698 | val SR 0.04 eq 0.988 | H 20.56
+15:11:34 | INFO | train | PPO update 90/180 | train-eq 0.781 | val SR -0.00 eq 0.947 | H 20.62
+15:11:49 | INFO | train | PPO update 105/180 | train-eq 0.834 | val SR 0.02 eq 0.967 | H 20.69
+15:12:04 | INFO | train | PPO update 120/180 | train-eq 0.862 | val SR 0.09 eq 1.031 | H 20.68 *saved*
+15:12:18 | INFO | train | PPO update 135/180 | train-eq 0.852 | val SR 0.08 eq 1.024 | H 20.80
+15:12:34 | INFO | train | PPO update 150/180 | train-eq 0.858 | val SR 0.12 eq 1.054 | H 20.88 *saved*
+15:12:48 | INFO | train | PPO update 165/180 | train-eq 0.797 | val SR 0.08 eq 1.025 | H 20.94
+15:13:03 | INFO | train | PPO update 180/180 | train-eq 0.947 | val SR -0.03 eq 0.946 | H 20.98
+15:13:03 | INFO | train | PPO finished in 177s | best val Sharpe 0.12 | saved ./outputs/models/ppo_actor.pt
+15:13:03 | INFO | train | training complete: 13356 days x 48 stocks
+15:17:45 | INFO | train | device: cuda
+15:17:45 | INFO | train | loaded cached panels: T=13356, N=48
+15:17:45 | INFO | train | news sentiment ready (recent coverage 0% of stocks)
+15:17:48 | INFO | train | PPO state dim: 434, actions: 48 (residual policy over momentum)
+15:17:51 | INFO | train | momentum-only baseline on val: Sharpe -0.95 | equity 0.6192
+15:18:08 | INFO | train | PPO update 16/200 | train-eq 0.796 | val SR -0.87 eq 0.659 | H 20.17 *saved*
+15:18:24 | INFO | train | PPO update 32/200 | train-eq 0.850 | val SR -0.80 eq 0.683 | H 20.25 *saved*
+15:18:40 | INFO | train | PPO update 48/200 | train-eq 0.863 | val SR -0.71 eq 0.720 | H 20.26 *saved*
+15:18:56 | INFO | train | PPO update 64/200 | train-eq 0.787 | val SR -0.79 eq 0.691 | H 20.41
+15:19:13 | INFO | train | PPO update 80/200 | train-eq 0.928 | val SR -0.74 eq 0.710 | H 20.51
+15:19:30 | INFO | train | PPO update 96/200 | train-eq 0.799 | val SR -0.79 eq 0.699 | H 20.54
+15:19:47 | INFO | train | PPO update 112/200 | train-eq 0.760 | val SR -0.85 eq 0.680 | H 20.59
+15:20:03 | INFO | train | PPO update 128/200 | train-eq 0.782 | val SR -0.73 eq 0.724 | H 20.61
+15:20:19 | INFO | train | PPO update 144/200 | train-eq 0.840 | val SR -0.56 eq 0.775 | H 20.73 *saved*
+15:20:35 | INFO | train | PPO update 160/200 | train-eq 0.876 | val SR -0.50 eq 0.793 | H 20.79 *saved*
+15:20:52 | INFO | train | PPO update 176/200 | train-eq 0.804 | val SR -0.56 eq 0.777 | H 20.83
+15:21:08 | INFO | train | PPO update 192/200 | train-eq 0.779 | val SR -0.50 eq 0.795 | H 20.89 *saved*
+15:21:15 | INFO | train | PPO finished in 204s | best val Sharpe -0.50 | saved ./outputs/models/ppo_actor.pt
+15:21:15 | INFO | train | training complete: 13356 days x 48 stocks
+15:29:21 | INFO | train | device: cuda
+15:29:21 | INFO | train | loaded cached panels: T=13356, N=48
+15:29:21 | INFO | train | news sentiment ready (recent coverage 0% of stocks)
+15:29:24 | INFO | train | PPO state dim: 434, actions: 48 (residual policy over momentum)
+15:29:28 | INFO | train | momentum-only baseline on val: Sharpe -0.95 | equity 0.6192
+15:29:46 | INFO | train | PPO update 16/200 | train-eq 0.796 | val SR -0.87 eq 0.659 | H 20.17 *saved*
+15:30:04 | INFO | train | PPO update 32/200 | train-eq 0.850 | val SR -0.80 eq 0.683 | H 20.25 *saved*
+15:30:24 | INFO | train | PPO update 48/200 | train-eq 0.863 | val SR -0.71 eq 0.720 | H 20.26 *saved*
+15:30:42 | INFO | train | PPO update 64/200 | train-eq 0.787 | val SR -0.79 eq 0.691 | H 20.41
+15:31:02 | INFO | train | PPO update 80/200 | train-eq 0.928 | val SR -0.74 eq 0.710 | H 20.51
+15:31:22 | INFO | train | PPO update 96/200 | train-eq 0.799 | val SR -0.79 eq 0.699 | H 20.54
+15:31:39 | INFO | train | PPO update 112/200 | train-eq 0.760 | val SR -0.85 eq 0.680 | H 20.59
+15:31:57 | INFO | train | PPO update 128/200 | train-eq 0.782 | val SR -0.73 eq 0.724 | H 20.61
+15:32:16 | INFO | train | PPO update 144/200 | train-eq 0.840 | val SR -0.56 eq 0.775 | H 20.73 *saved*
+15:32:33 | INFO | train | PPO update 160/200 | train-eq 0.876 | val SR -0.50 eq 0.793 | H 20.79 *saved*
+15:32:49 | INFO | train | PPO update 176/200 | train-eq 0.804 | val SR -0.56 eq 0.777 | H 20.83
+15:33:07 | INFO | train | PPO update 192/200 | train-eq 0.779 | val SR -0.50 eq 0.795 | H 20.89 *saved*
+15:33:15 | INFO | train | PPO finished in 228s | best val Sharpe -0.50 | saved ./outputs/models/ppo_actor.pt
+15:33:15 | INFO | train | training complete: 13356 days x 48 stocks
+15:33:39 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:33:40 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:37:56 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:37:57 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:38:01 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+15:38:57 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:38:58 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:39:02 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+15:40:03 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:40:04 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:40:06 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+15:40:08 | INFO | backtest | walkforward day 60/2004 | 2s | diffusion calls 7
+15:40:11 | INFO | backtest | walkforward day 120/2004 | 4s | diffusion calls 19
+15:40:13 | INFO | backtest | walkforward day 180/2004 | 7s | diffusion calls 31
+15:40:16 | INFO | backtest | walkforward day 240/2004 | 10s | diffusion calls 43
+15:40:18 | INFO | backtest | walkforward day 300/2004 | 12s | diffusion calls 55
+15:40:20 | INFO | backtest | walkforward day 360/2004 | 14s | diffusion calls 67
+15:40:22 | INFO | backtest | walkforward day 420/2004 | 16s | diffusion calls 79
+15:40:24 | INFO | backtest | walkforward day 480/2004 | 18s | diffusion calls 91
+15:40:26 | INFO | backtest | walkforward day 540/2004 | 20s | diffusion calls 103
+15:40:29 | INFO | backtest | walkforward day 600/2004 | 22s | diffusion calls 115
+15:40:31 | INFO | backtest | walkforward day 660/2004 | 24s | diffusion calls 127
+15:40:33 | INFO | backtest | walkforward day 720/2004 | 27s | diffusion calls 139
+15:40:35 | INFO | backtest | walkforward day 780/2004 | 29s | diffusion calls 151
+15:40:37 | INFO | backtest | walkforward day 840/2004 | 31s | diffusion calls 163
+15:40:40 | INFO | backtest | walkforward day 900/2004 | 33s | diffusion calls 175
+15:40:42 | INFO | backtest | walkforward day 960/2004 | 36s | diffusion calls 187
+15:40:44 | INFO | backtest | walkforward day 1020/2004 | 38s | diffusion calls 199
+15:40:47 | INFO | backtest | walkforward day 1080/2004 | 40s | diffusion calls 211
+15:40:49 | INFO | backtest | walkforward day 1140/2004 | 43s | diffusion calls 223
+15:40:51 | INFO | backtest | walkforward day 1200/2004 | 45s | diffusion calls 235
+15:40:53 | INFO | backtest | walkforward day 1260/2004 | 47s | diffusion calls 247
+15:40:55 | INFO | backtest | walkforward day 1320/2004 | 49s | diffusion calls 259
+15:40:58 | INFO | backtest | walkforward day 1380/2004 | 52s | diffusion calls 271
+15:41:00 | INFO | backtest | walkforward day 1440/2004 | 54s | diffusion calls 283
+15:41:02 | INFO | backtest | walkforward day 1500/2004 | 56s | diffusion calls 295
+15:41:04 | INFO | backtest | walkforward day 1560/2004 | 58s | diffusion calls 307
+15:41:07 | INFO | backtest | walkforward day 1620/2004 | 61s | diffusion calls 319
+15:41:09 | INFO | backtest | walkforward day 1680/2004 | 63s | diffusion calls 331
+15:41:11 | INFO | backtest | walkforward day 1740/2004 | 65s | diffusion calls 343
+15:41:13 | INFO | backtest | walkforward day 1800/2004 | 67s | diffusion calls 355
+15:41:16 | INFO | backtest | walkforward day 1860/2004 | 69s | diffusion calls 367
+15:41:18 | INFO | backtest | walkforward day 1920/2004 | 72s | diffusion calls 379
+15:41:20 | INFO | backtest | walkforward day 1980/2004 | 74s | diffusion calls 391
+15:41:24 | INFO | backtest | plot saved to /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/plots/backtest_equity.png
+15:44:07 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:44:08 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:44:10 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+15:44:12 | INFO | backtest | walkforward day 60/2004 | 2s | diffusion calls 7
+15:44:14 | INFO | backtest | walkforward day 120/2004 | 4s | diffusion calls 19
+15:44:17 | INFO | backtest | walkforward day 180/2004 | 6s | diffusion calls 31
+15:44:19 | INFO | backtest | walkforward day 240/2004 | 8s | diffusion calls 43
+15:44:21 | INFO | backtest | walkforward day 300/2004 | 10s | diffusion calls 55
+15:44:23 | INFO | backtest | walkforward day 360/2004 | 13s | diffusion calls 67
+15:44:25 | INFO | backtest | walkforward day 420/2004 | 15s | diffusion calls 79
+15:44:27 | INFO | backtest | walkforward day 480/2004 | 17s | diffusion calls 91
+15:44:29 | INFO | backtest | walkforward day 540/2004 | 19s | diffusion calls 103
+15:44:31 | INFO | backtest | walkforward day 600/2004 | 21s | diffusion calls 115
+15:44:33 | INFO | backtest | walkforward day 660/2004 | 23s | diffusion calls 127
+15:44:35 | INFO | backtest | walkforward day 720/2004 | 25s | diffusion calls 139
+15:44:37 | INFO | backtest | walkforward day 780/2004 | 27s | diffusion calls 151
+15:44:39 | INFO | backtest | walkforward day 840/2004 | 29s | diffusion calls 163
+15:44:41 | INFO | backtest | walkforward day 900/2004 | 31s | diffusion calls 175
+15:44:44 | INFO | backtest | walkforward day 960/2004 | 34s | diffusion calls 187
+15:44:46 | INFO | backtest | walkforward day 1020/2004 | 36s | diffusion calls 199
+15:44:48 | INFO | backtest | walkforward day 1080/2004 | 38s | diffusion calls 211
+15:44:50 | INFO | backtest | walkforward day 1140/2004 | 40s | diffusion calls 223
+15:44:52 | INFO | backtest | walkforward day 1200/2004 | 42s | diffusion calls 235
+15:44:54 | INFO | backtest | walkforward day 1260/2004 | 44s | diffusion calls 247
+15:44:57 | INFO | backtest | walkforward day 1320/2004 | 46s | diffusion calls 259
+15:44:59 | INFO | backtest | walkforward day 1380/2004 | 48s | diffusion calls 271
+15:45:01 | INFO | backtest | walkforward day 1440/2004 | 50s | diffusion calls 283
+15:45:03 | INFO | backtest | walkforward day 1500/2004 | 52s | diffusion calls 295
+15:45:05 | INFO | backtest | walkforward day 1560/2004 | 54s | diffusion calls 307
+15:45:07 | INFO | backtest | walkforward day 1620/2004 | 56s | diffusion calls 319
+15:45:09 | INFO | backtest | walkforward day 1680/2004 | 59s | diffusion calls 331
+15:45:11 | INFO | backtest | walkforward day 1740/2004 | 61s | diffusion calls 343
+15:45:13 | INFO | backtest | walkforward day 1800/2004 | 63s | diffusion calls 355
+15:45:15 | INFO | backtest | walkforward day 1860/2004 | 65s | diffusion calls 367
+15:45:17 | INFO | backtest | walkforward day 1920/2004 | 67s | diffusion calls 379
+15:45:19 | INFO | backtest | walkforward day 1980/2004 | 69s | diffusion calls 391
+15:45:21 | INFO | backtest | plot saved to /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/plots/backtest_equity.png
+15:45:28 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:45:29 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:45:32 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+15:45:35 | INFO | backtest | walkforward day 60/2004 | 3s | diffusion calls 7
+15:45:38 | INFO | backtest | walkforward day 120/2004 | 5s | diffusion calls 19
+15:45:40 | INFO | backtest | walkforward day 180/2004 | 8s | diffusion calls 31
+15:45:42 | INFO | backtest | walkforward day 240/2004 | 10s | diffusion calls 43
+15:45:44 | INFO | backtest | walkforward day 300/2004 | 12s | diffusion calls 55
+15:45:46 | INFO | backtest | walkforward day 360/2004 | 14s | diffusion calls 67
+15:45:48 | INFO | backtest | walkforward day 420/2004 | 16s | diffusion calls 79
+15:45:51 | INFO | backtest | walkforward day 480/2004 | 18s | diffusion calls 91
+15:45:53 | INFO | backtest | walkforward day 540/2004 | 20s | diffusion calls 103
+15:45:55 | INFO | backtest | walkforward day 600/2004 | 22s | diffusion calls 115
+15:45:57 | INFO | backtest | walkforward day 660/2004 | 24s | diffusion calls 127
+15:45:59 | INFO | backtest | walkforward day 720/2004 | 26s | diffusion calls 139
+15:46:01 | INFO | backtest | walkforward day 780/2004 | 29s | diffusion calls 151
+15:46:03 | INFO | backtest | walkforward day 840/2004 | 31s | diffusion calls 163
+15:46:05 | INFO | backtest | walkforward day 900/2004 | 33s | diffusion calls 175
+15:46:07 | INFO | backtest | walkforward day 960/2004 | 35s | diffusion calls 187
+15:46:09 | INFO | backtest | walkforward day 1020/2004 | 37s | diffusion calls 199
+15:46:11 | INFO | backtest | walkforward day 1080/2004 | 39s | diffusion calls 211
+15:46:13 | INFO | backtest | walkforward day 1140/2004 | 41s | diffusion calls 223
+15:46:15 | INFO | backtest | walkforward day 1200/2004 | 43s | diffusion calls 235
+15:46:17 | INFO | backtest | walkforward day 1260/2004 | 45s | diffusion calls 247
+15:46:19 | INFO | backtest | walkforward day 1320/2004 | 47s | diffusion calls 259
+15:46:21 | INFO | backtest | walkforward day 1380/2004 | 49s | diffusion calls 271
+15:46:23 | INFO | backtest | walkforward day 1440/2004 | 51s | diffusion calls 283
+15:46:25 | INFO | backtest | walkforward day 1500/2004 | 53s | diffusion calls 295
+15:46:27 | INFO | backtest | walkforward day 1560/2004 | 55s | diffusion calls 307
+15:46:29 | INFO | backtest | walkforward day 1620/2004 | 57s | diffusion calls 319
+15:46:31 | INFO | backtest | walkforward day 1680/2004 | 59s | diffusion calls 331
+15:46:34 | INFO | backtest | walkforward day 1740/2004 | 61s | diffusion calls 343
+15:46:36 | INFO | backtest | walkforward day 1800/2004 | 64s | diffusion calls 355
+15:46:38 | INFO | backtest | walkforward day 1860/2004 | 66s | diffusion calls 367
+15:46:40 | INFO | backtest | walkforward day 1920/2004 | 68s | diffusion calls 379
+15:46:42 | INFO | backtest | walkforward day 1980/2004 | 70s | diffusion calls 391
+15:46:44 | INFO | backtest | plot saved to /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/plots/backtest_equity.png
+15:46:52 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:46:54 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:46:57 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+15:47:00 | INFO | backtest | walkforward day 60/2004 | 3s | diffusion calls 7
+15:47:02 | INFO | backtest | walkforward day 120/2004 | 5s | diffusion calls 19
+15:47:04 | INFO | backtest | walkforward day 180/2004 | 8s | diffusion calls 31
+15:47:06 | INFO | backtest | walkforward day 240/2004 | 10s | diffusion calls 43
+15:47:09 | INFO | backtest | walkforward day 300/2004 | 12s | diffusion calls 55
+15:47:11 | INFO | backtest | walkforward day 360/2004 | 14s | diffusion calls 67
+15:47:13 | INFO | backtest | walkforward day 420/2004 | 17s | diffusion calls 79
+15:47:16 | INFO | backtest | walkforward day 480/2004 | 19s | diffusion calls 91
+15:47:18 | INFO | backtest | walkforward day 540/2004 | 21s | diffusion calls 103
+15:47:20 | INFO | backtest | walkforward day 600/2004 | 23s | diffusion calls 115
+15:47:22 | INFO | backtest | walkforward day 660/2004 | 25s | diffusion calls 127
+15:47:24 | INFO | backtest | walkforward day 720/2004 | 27s | diffusion calls 139
+15:47:26 | INFO | backtest | walkforward day 780/2004 | 29s | diffusion calls 151
+15:47:28 | INFO | backtest | walkforward day 840/2004 | 31s | diffusion calls 163
+15:47:30 | INFO | backtest | walkforward day 900/2004 | 33s | diffusion calls 175
+15:47:32 | INFO | backtest | walkforward day 960/2004 | 36s | diffusion calls 187
+15:47:35 | INFO | backtest | walkforward day 1020/2004 | 38s | diffusion calls 199
+15:47:37 | INFO | backtest | walkforward day 1080/2004 | 40s | diffusion calls 211
+15:47:39 | INFO | backtest | walkforward day 1140/2004 | 42s | diffusion calls 223
+15:47:41 | INFO | backtest | walkforward day 1200/2004 | 44s | diffusion calls 235
+15:47:43 | INFO | backtest | walkforward day 1260/2004 | 46s | diffusion calls 247
+15:47:45 | INFO | backtest | walkforward day 1320/2004 | 48s | diffusion calls 259
+15:47:47 | INFO | backtest | walkforward day 1380/2004 | 50s | diffusion calls 271
+15:47:49 | INFO | backtest | walkforward day 1440/2004 | 53s | diffusion calls 283
+15:47:52 | INFO | backtest | walkforward day 1500/2004 | 55s | diffusion calls 295
+15:47:54 | INFO | backtest | walkforward day 1560/2004 | 57s | diffusion calls 307
+15:47:56 | INFO | backtest | walkforward day 1620/2004 | 59s | diffusion calls 319
+15:47:58 | INFO | backtest | walkforward day 1680/2004 | 61s | diffusion calls 331
+15:48:00 | INFO | backtest | walkforward day 1740/2004 | 64s | diffusion calls 343
+15:48:03 | INFO | backtest | walkforward day 1800/2004 | 66s | diffusion calls 355
+15:48:05 | INFO | backtest | walkforward day 1860/2004 | 68s | diffusion calls 367
+15:48:07 | INFO | backtest | walkforward day 1920/2004 | 70s | diffusion calls 379
+15:48:09 | INFO | backtest | walkforward day 1980/2004 | 72s | diffusion calls 391
+15:48:12 | INFO | backtest | plot saved to /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/plots/backtest_equity.png
+15:50:20 | INFO | backtest | loaded cached panels: T=13356, N=48
+15:50:21 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+15:50:23 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+15:50:25 | INFO | backtest | walkforward day 60/2004 | 2s | diffusion calls 7
+15:50:27 | INFO | backtest | walkforward day 120/2004 | 4s | diffusion calls 19
+15:50:29 | INFO | backtest | walkforward day 180/2004 | 6s | diffusion calls 31
+15:50:31 | INFO | backtest | walkforward day 240/2004 | 8s | diffusion calls 43
+15:50:33 | INFO | backtest | walkforward day 300/2004 | 10s | diffusion calls 55
+15:50:35 | INFO | backtest | walkforward day 360/2004 | 12s | diffusion calls 67
+15:50:38 | INFO | backtest | walkforward day 420/2004 | 14s | diffusion calls 79
+15:50:40 | INFO | backtest | walkforward day 480/2004 | 16s | diffusion calls 91
+15:50:42 | INFO | backtest | walkforward day 540/2004 | 18s | diffusion calls 103
+15:50:44 | INFO | backtest | walkforward day 600/2004 | 20s | diffusion calls 115
+15:50:46 | INFO | backtest | walkforward day 660/2004 | 23s | diffusion calls 127
+15:50:48 | INFO | backtest | walkforward day 720/2004 | 25s | diffusion calls 139
+15:50:50 | INFO | backtest | walkforward day 780/2004 | 27s | diffusion calls 151
+15:50:52 | INFO | backtest | walkforward day 840/2004 | 29s | diffusion calls 163
+15:50:54 | INFO | backtest | walkforward day 900/2004 | 31s | diffusion calls 175
+15:50:57 | INFO | backtest | walkforward day 960/2004 | 33s | diffusion calls 187
+15:50:59 | INFO | backtest | walkforward day 1020/2004 | 36s | diffusion calls 199
+15:51:01 | INFO | backtest | walkforward day 1080/2004 | 38s | diffusion calls 211
+15:51:03 | INFO | backtest | walkforward day 1140/2004 | 40s | diffusion calls 223
+15:51:05 | INFO | backtest | walkforward day 1200/2004 | 42s | diffusion calls 235
+15:51:07 | INFO | backtest | walkforward day 1260/2004 | 44s | diffusion calls 247
+15:51:09 | INFO | backtest | walkforward day 1320/2004 | 46s | diffusion calls 259
+15:51:11 | INFO | backtest | walkforward day 1380/2004 | 48s | diffusion calls 271
+15:51:13 | INFO | backtest | walkforward day 1440/2004 | 50s | diffusion calls 283
+15:51:16 | INFO | backtest | walkforward day 1500/2004 | 52s | diffusion calls 295
+15:51:18 | INFO | backtest | walkforward day 1560/2004 | 54s | diffusion calls 307
+15:51:20 | INFO | backtest | walkforward day 1620/2004 | 57s | diffusion calls 319
+15:51:22 | INFO | backtest | walkforward day 1680/2004 | 59s | diffusion calls 331
+15:51:24 | INFO | backtest | walkforward day 1740/2004 | 61s | diffusion calls 343
+15:51:26 | INFO | backtest | walkforward day 1800/2004 | 63s | diffusion calls 355
+15:51:29 | INFO | backtest | walkforward day 1860/2004 | 65s | diffusion calls 367
+15:51:31 | INFO | backtest | walkforward day 1920/2004 | 68s | diffusion calls 379
+15:51:33 | INFO | backtest | walkforward day 1980/2004 | 70s | diffusion calls 391
+15:51:36 | INFO | backtest | plot saved to /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/plots/backtest_equity.png
+16:02:36 | INFO | backtest | loaded cached panels: T=13356, N=48
+16:02:37 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+16:02:41 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+16:02:44 | INFO | backtest | walkforward day 60/2004 | 3s | diffusion calls 7
+16:02:46 | INFO | backtest | walkforward day 120/2004 | 5s | diffusion calls 19
+16:02:49 | INFO | backtest | walkforward day 180/2004 | 8s | diffusion calls 31
+16:02:51 | INFO | backtest | walkforward day 240/2004 | 10s | diffusion calls 43
+16:02:53 | INFO | backtest | walkforward day 300/2004 | 12s | diffusion calls 55
+16:02:55 | INFO | backtest | walkforward day 360/2004 | 14s | diffusion calls 67
+16:02:57 | INFO | backtest | walkforward day 420/2004 | 16s | diffusion calls 79
+16:02:59 | INFO | backtest | walkforward day 480/2004 | 18s | diffusion calls 91
+16:03:02 | INFO | backtest | walkforward day 540/2004 | 21s | diffusion calls 103
+16:03:04 | INFO | backtest | walkforward day 600/2004 | 23s | diffusion calls 115
+16:03:06 | INFO | backtest | walkforward day 660/2004 | 25s | diffusion calls 127
+16:03:08 | INFO | backtest | walkforward day 720/2004 | 27s | diffusion calls 139
+16:03:10 | INFO | backtest | walkforward day 780/2004 | 29s | diffusion calls 151
+16:03:12 | INFO | backtest | walkforward day 840/2004 | 31s | diffusion calls 163
+16:03:15 | INFO | backtest | walkforward day 900/2004 | 34s | diffusion calls 175
+16:03:17 | INFO | backtest | walkforward day 960/2004 | 36s | diffusion calls 187
+16:03:19 | INFO | backtest | walkforward day 1020/2004 | 38s | diffusion calls 199
+16:03:21 | INFO | backtest | walkforward day 1080/2004 | 40s | diffusion calls 211
+16:03:24 | INFO | backtest | walkforward day 1140/2004 | 43s | diffusion calls 223
+16:03:26 | INFO | backtest | walkforward day 1200/2004 | 45s | diffusion calls 235
+16:03:29 | INFO | backtest | walkforward day 1260/2004 | 48s | diffusion calls 247
+16:03:31 | INFO | backtest | walkforward day 1320/2004 | 50s | diffusion calls 259
+16:03:34 | INFO | backtest | walkforward day 1380/2004 | 53s | diffusion calls 271
+16:03:36 | INFO | backtest | walkforward day 1440/2004 | 55s | diffusion calls 283
+16:03:38 | INFO | backtest | walkforward day 1500/2004 | 57s | diffusion calls 295
+16:03:40 | INFO | backtest | walkforward day 1560/2004 | 60s | diffusion calls 307
+16:03:43 | INFO | backtest | walkforward day 1620/2004 | 62s | diffusion calls 319
+16:03:45 | INFO | backtest | walkforward day 1680/2004 | 64s | diffusion calls 331
+16:03:47 | INFO | backtest | walkforward day 1740/2004 | 66s | diffusion calls 343
+16:03:49 | INFO | backtest | walkforward day 1800/2004 | 69s | diffusion calls 355
+16:03:52 | INFO | backtest | walkforward day 1860/2004 | 71s | diffusion calls 367
+16:03:54 | INFO | backtest | walkforward day 1920/2004 | 73s | diffusion calls 379
+16:03:56 | INFO | backtest | walkforward day 1980/2004 | 75s | diffusion calls 391
+16:04:00 | INFO | backtest | plot saved to /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/plots/backtest_equity.png
+16:05:44 | INFO | live | loaded cached panels: T=13356, N=48
+16:05:44 | INFO | live | news sentiment ready (recent coverage 0% of stocks)
+16:05:47 | INFO | live | diffusion scenarios ready: (16, 6, 48, 10)
+16:05:50 | INFO | live | RL actor loaded (residual over momentum)
+16:11:30 | INFO | train | device: cuda
+16:11:30 | INFO | train | loaded cached panels: T=14283, N=48
+16:12:32 | INFO | train | news sentiment ready (recent coverage 0% of stocks)
+16:12:33 | INFO | train | splits: train (0, 9917), val (9957, 12140), test (12140, 14283)
+16:12:34 | INFO | train | channels per stock: 6
+16:12:34 | INFO | train | MaTCHS parameters: 5,665,478
+16:13:08 | INFO | train | [diffusion] epoch 001 | train 0.12414 | val 0.09052 | 31s
+16:13:38 | INFO | train | [diffusion] epoch 002 | train 0.05477 | val 0.07949 | 61s
+16:14:04 | INFO | train | [diffusion] epoch 003 | train 0.04800 | val 0.06361 | 87s
+16:14:30 | INFO | train | [diffusion] epoch 004 | train 0.04281 | val 0.06001 | 113s
+16:14:56 | INFO | train | [diffusion] epoch 005 | train 0.04180 | val 0.05735 | 139s
+16:15:22 | INFO | train | [diffusion] epoch 006 | train 0.03967 | val 0.05897 | 165s
+16:15:47 | INFO | train | [diffusion] epoch 007 | train 0.03820 | val 0.05518 | 191s
+16:16:13 | INFO | train | [diffusion] epoch 008 | train 0.03636 | val 0.05377 | 217s
+16:16:39 | INFO | train | [diffusion] epoch 009 | train 0.03527 | val 0.05137 | 243s
+16:17:05 | INFO | train | [diffusion] epoch 010 | train 0.03428 | val 0.05332 | 269s
+16:17:31 | INFO | train | [diffusion] epoch 011 | train 0.03419 | val 0.05148 | 295s
+16:17:57 | INFO | train | [diffusion] epoch 012 | train 0.03261 | val 0.04760 | 321s
+16:18:23 | INFO | train | [diffusion] epoch 013 | train 0.03220 | val 0.04473 | 347s
+16:18:49 | INFO | train | [diffusion] epoch 014 | train 0.03127 | val 0.04588 | 373s
+16:19:15 | INFO | train | [diffusion] epoch 015 | train 0.03068 | val 0.04663 | 398s
+16:19:41 | INFO | train | [diffusion] epoch 016 | train 0.02964 | val 0.04147 | 424s
+16:20:07 | INFO | train | [diffusion] epoch 017 | train 0.02820 | val 0.04406 | 450s
+16:20:33 | INFO | train | [diffusion] epoch 018 | train 0.02837 | val 0.04447 | 476s
+16:20:59 | INFO | train | [diffusion] epoch 019 | train 0.02714 | val 0.04090 | 502s
+16:21:24 | INFO | train | [diffusion] epoch 020 | train 0.02673 | val 0.04043 | 528s
+16:21:51 | INFO | train | [diffusion] epoch 021 | train 0.02643 | val 0.04092 | 554s
+16:22:16 | INFO | train | [diffusion] epoch 022 | train 0.02570 | val 0.03896 | 580s
+16:22:42 | INFO | train | [diffusion] epoch 023 | train 0.02591 | val 0.04109 | 606s
+16:23:08 | INFO | train | [diffusion] epoch 024 | train 0.02532 | val 0.04104 | 631s
+16:23:34 | INFO | train | [diffusion] epoch 025 | train 0.02491 | val 0.04155 | 657s
+16:23:34 | INFO | train | saved diffusion model to ./outputs/models/matchs_diffusion.pt (best val loss 0.03896)
+16:23:34 | INFO | train | PPO state dim: 434, actions: 48 (residual policy over momentum)
+16:23:37 | INFO | train | momentum-only baseline on val: Sharpe -1.15 | equity 0.6156
+16:23:51 | INFO | train | PPO update 12/150 | train-eq 0.767 | val SR -1.10 eq 0.631 | H 20.12 *saved*
+16:24:06 | INFO | train | PPO update 24/150 | train-eq 0.832 | val SR -0.95 eq 0.677 | H 20.16 *saved*
+16:24:19 | INFO | train | PPO update 36/150 | train-eq 0.716 | val SR -0.93 eq 0.682 | H 20.25 *saved*
+16:24:33 | INFO | train | PPO update 48/150 | train-eq 0.862 | val SR -1.00 eq 0.663 | H 20.30
+16:24:47 | INFO | train | PPO update 60/150 | train-eq 0.817 | val SR -1.13 eq 0.626 | H 20.35
+16:25:01 | INFO | train | PPO update 72/150 | train-eq 0.807 | val SR -1.17 eq 0.620 | H 20.43
+16:25:14 | INFO | train | PPO update 84/150 | train-eq 0.913 | val SR -1.20 eq 0.616 | H 20.54
+16:25:27 | INFO | train | PPO update 96/150 | train-eq 0.768 | val SR -1.18 eq 0.622 | H 20.69
+16:25:41 | INFO | train | PPO update 108/150 | train-eq 0.884 | val SR -1.21 eq 0.620 | H 20.81
+16:25:54 | INFO | train | PPO update 120/150 | train-eq 0.785 | val SR -1.16 eq 0.639 | H 20.83
+16:26:07 | INFO | train | PPO update 132/150 | train-eq 0.841 | val SR -1.07 eq 0.663 | H 20.93
+16:26:20 | INFO | train | PPO update 144/150 | train-eq 0.828 | val SR -0.79 eq 0.733 | H 20.93 *saved*
+16:26:26 | INFO | train | PPO finished in 168s | best val Sharpe -0.79 | saved ./outputs/models/ppo_actor.pt
+16:26:26 | INFO | train | training complete: 14283 days x 48 stocks
+16:26:54 | INFO | backtest | loaded cached panels: T=14283, N=48
+16:26:55 | INFO | backtest | loaded diffusion model from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/matchs_diffusion.pt (C=6)
+16:26:57 | INFO | backtest | loaded RL actor from /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/models/ppo_actor.pt (state_dim=434, actions=48)
+16:26:59 | INFO | backtest | walkforward day 60/2143 | 2s | diffusion calls 7
+16:27:01 | INFO | backtest | walkforward day 120/2143 | 4s | diffusion calls 19
+16:27:03 | INFO | backtest | walkforward day 180/2143 | 6s | diffusion calls 31
+16:27:05 | INFO | backtest | walkforward day 240/2143 | 8s | diffusion calls 43
+16:27:07 | INFO | backtest | walkforward day 300/2143 | 10s | diffusion calls 55
+16:27:09 | INFO | backtest | walkforward day 360/2143 | 12s | diffusion calls 67
+16:27:11 | INFO | backtest | walkforward day 420/2143 | 14s | diffusion calls 79
+16:27:13 | INFO | backtest | walkforward day 480/2143 | 16s | diffusion calls 91
+16:27:15 | INFO | backtest | walkforward day 540/2143 | 18s | diffusion calls 103
+16:27:17 | INFO | backtest | walkforward day 600/2143 | 20s | diffusion calls 115
+16:27:19 | INFO | backtest | walkforward day 660/2143 | 22s | diffusion calls 127
+16:27:21 | INFO | backtest | walkforward day 720/2143 | 24s | diffusion calls 139
+16:27:23 | INFO | backtest | walkforward day 780/2143 | 26s | diffusion calls 151
+16:27:25 | INFO | backtest | walkforward day 840/2143 | 28s | diffusion calls 163
+16:27:27 | INFO | backtest | walkforward day 900/2143 | 30s | diffusion calls 175
+16:27:29 | INFO | backtest | walkforward day 960/2143 | 32s | diffusion calls 187
+16:27:32 | INFO | backtest | walkforward day 1020/2143 | 34s | diffusion calls 199
+16:27:34 | INFO | backtest | walkforward day 1080/2143 | 36s | diffusion calls 211
+16:27:36 | INFO | backtest | walkforward day 1140/2143 | 39s | diffusion calls 223
+16:27:38 | INFO | backtest | walkforward day 1200/2143 | 41s | diffusion calls 235
+16:27:40 | INFO | backtest | walkforward day 1260/2143 | 43s | diffusion calls 247
+16:27:42 | INFO | backtest | walkforward day 1320/2143 | 45s | diffusion calls 259
+16:27:44 | INFO | backtest | walkforward day 1380/2143 | 47s | diffusion calls 271
+16:27:46 | INFO | backtest | walkforward day 1440/2143 | 49s | diffusion calls 283
+16:27:48 | INFO | backtest | walkforward day 1500/2143 | 51s | diffusion calls 295
+16:27:50 | INFO | backtest | walkforward day 1560/2143 | 53s | diffusion calls 307
+16:27:52 | INFO | backtest | walkforward day 1620/2143 | 55s | diffusion calls 319
+16:27:54 | INFO | backtest | walkforward day 1680/2143 | 57s | diffusion calls 331
+16:27:56 | INFO | backtest | walkforward day 1740/2143 | 59s | diffusion calls 343
+16:27:58 | INFO | backtest | walkforward day 1800/2143 | 61s | diffusion calls 355
+16:28:00 | INFO | backtest | walkforward day 1860/2143 | 63s | diffusion calls 367
+16:28:02 | INFO | backtest | walkforward day 1920/2143 | 65s | diffusion calls 379
+16:28:04 | INFO | backtest | walkforward day 1980/2143 | 67s | diffusion calls 391
+16:28:06 | INFO | backtest | walkforward day 2040/2143 | 69s | diffusion calls 403
+16:28:08 | INFO | backtest | walkforward day 2100/2143 | 71s | diffusion calls 415
+16:28:11 | INFO | backtest | plot saved to /home/alien-hawk/Desktop/PEDC/alpha_system/outputs/plots/backtest_equity.png
+16:28:58 | INFO | live | loaded cached panels: T=14283, N=48
+16:28:58 | INFO | live | news sentiment ready (recent coverage 0% of stocks)
+16:28:59 | INFO | live | diffusion scenarios ready: (16, 6, 48, 10)
+16:29:02 | INFO | live | RL actor loaded (residual over momentum)
+16:44:23 | INFO | live | scanning universe across markets ...
+16:44:23 | INFO | live | found 0 unique symbols
+16:45:45 | INFO | live | scanning universe across markets ...
+16:45:45 | INFO | live | found 0 unique symbols
+16:49:55 | INFO | live | loaded cached panels: T=14283, N=48
+16:49:55 | INFO | live | news sentiment ready (recent coverage 0% of stocks)
+16:49:59 | INFO | live | diffusion scenarios ready: (16, 6, 48, 10)
+16:50:02 | INFO | live | RL actor loaded (residual over momentum)
