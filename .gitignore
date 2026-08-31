@@ -1,2 +1,8 @@
 *.json
 *.csv
+
+# alpha_system
+__pycache__/
+*.pyc
+alpha_system/data_cache/
+alpha_system/outputs/run.log

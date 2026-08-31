@@ -339,7 +339,6 @@ if __name__ == "__main__":
         mean_pred_norm = all_predictions.mean(axis=0)[0, stock_idx, feature_idx, :]
         mean_pred = (mean_pred_norm * s_v) + m_v
         ax.plot(x_future, mean_pred, label="Mean Prediction", color="red", marker="x", linestyle="--", linewidth=2.5)
-        
         ax.axvline(x=29, color="gray", linestyle="--")
         ax.set_title(f"Stock Index: {stock_idx}")
         ax.set_xlabel("Days")
