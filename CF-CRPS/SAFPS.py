@@ -1,31 +1,32 @@
+
 """
-SAFPS v0.1.2
-State-Adaptive Financial Proper Score
-Monotonic-Controller Correction
+SAFPS v0.1.3
+Sensitivity & Tuning Framework for Monotonic Hybrid Controller
 
-Goal
-----
-Fix the semantic failure observed in v0.1.1 without moving to the next
-loss-function extension.
+Purpose
+-------
+Tune the v0.1.x core BEFORE moving to v0.2.
 
-Compared methods
-----------------
-1) crps
-2) static
-3) prior
-4) neural                  -> deliberately unconstrained ablation
-5) hybrid                  -> bounded but not monotonic
-6) monotonic_hybrid        -> semantically constrained controller
+This script:
+1) Builds the same synthetic financial environment.
+2) Trains a CRPS baseline once per development seed.
+3) Tunes Monotonic Hybrid SAFPS in three stages:
+      Stage 1: lambda_fin x hybrid_delta
+      Stage 2: prior_kl_weight
+      Stage 3: min_allocation
+4) Applies research constraints:
+      - zero monotonicity violations
+      - CRPS degradation <= allowed threshold
+5) Ranks configurations primarily by Stress Tail Brier.
+6) Saves all results to CSV.
 
-Key correction
---------------
-The Monotonic Hybrid architecture is constructed so that, holding the
-other state fixed:
+IMPORTANT
+---------
+The development seeds used here are for tuning.
+Do NOT treat them as final test seeds.
 
-    Risk State ↑  => pi_T cannot decrease
-    Direction Uncertainty ↑ => pi_D cannot decrease
-
-This is enforced by architecture, not only by a penalty.
+After choosing a final configuration, test it ONCE
+on completely new seeds (e.g. 1000-1029).
 
 Requirements
 ------------
@@ -33,13 +34,13 @@ pip install torch numpy pandas
 
 Run
 ---
-python SAFPS_v012.py
+python SAFPS_v013.py
 """
 
 import math
 import random
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
@@ -49,32 +50,40 @@ import torch.nn.functional as F
 
 
 # ============================================================
-# Configuration
+# USER SETTINGS
+# ============================================================
+
+# "quick" = faster exploratory tuning
+# "full"  = more serious tuning
+RUN_MODE = "quick"
+
+
+# ============================================================
+# Base configuration
 # ============================================================
 
 @dataclass
 class Config:
-    # Experiment
-    n_seeds: int = 10
-    seed_start: int = 42
-
-    # Synthetic data
+    # Data
     n_samples: int = 7000
     train_size: int = 4500
     val_size: int = 1200
 
     # Training
-    epochs: int = 60
+    epochs: int = 45
     batch_size: int = 256
     lr: float = 3e-3
 
-    # Weighted-CRPS integration grid
+    # Weighted-CRPS integration
     z_min: float = -8.0
     z_max: float = 8.0
     n_grid: int = 129
 
-    # Extra financial sensitivity budget
+    # Tuned parameters
     lambda_fin: float = 2.0
+    hybrid_delta: float = 0.35
+    prior_kl_weight: float = 0.02
+    min_allocation: float = 0.05
 
     # Financial regions
     direction_width: float = 0.45
@@ -82,29 +91,50 @@ class Config:
     tail_threshold: float = 2.2
     tail_temp: float = 0.35
 
-    # Positive floor on allocation
-    min_allocation: float = 0.05
-
-    # Hybrid correction strength
-    hybrid_delta: float = 0.35
-
-    # Stay reasonably close to the financial prior
-    prior_kl_weight: float = 0.02
-
     # Diagnostics
-    low_risk_max: float = 0.33
-    high_risk_min: float = 0.66
     stress_threshold: float = 0.70
-
-    # Numerical tolerance for monotonicity diagnostics
     monotonic_tol: float = 1e-7
 
+    # Selection constraint:
+    # adaptive CRPS may not be worse than baseline
+    # by more than this percentage.
+    max_crps_degradation_pct: float = 0.10
 
-CFG = Config()
+
+BASE_CFG = Config()
 
 DEVICE = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )
+
+
+# ============================================================
+# Tuning space
+# ============================================================
+
+if RUN_MODE == "quick":
+    DEV_SEEDS = [101, 102, 103]
+
+    STAGE1_LAMBDAS = [1.0, 1.5, 2.0, 2.5]
+    STAGE1_DELTAS = [0.15, 0.35, 0.50]
+
+    STAGE2_KLS = [0.00, 0.02, 0.05]
+    STAGE3_MIN_ALLOC = [0.02, 0.05, 0.08]
+
+    TOP_K_STAGE1 = 3
+    TOP_K_STAGE2 = 2
+
+else:
+    DEV_SEEDS = list(range(101, 111))
+
+    STAGE1_LAMBDAS = [0.5, 1.0, 1.5, 2.0, 3.0]
+    STAGE1_DELTAS = [0.10, 0.20, 0.35, 0.50]
+
+    STAGE2_KLS = [0.00, 0.01, 0.02, 0.05]
+    STAGE3_MIN_ALLOC = [0.02, 0.05, 0.08, 0.10]
+
+    TOP_K_STAGE1 = 5
+    TOP_K_STAGE2 = 3
 
 
 # ============================================================
@@ -127,42 +157,28 @@ def set_global_seed(seed: int):
 # ============================================================
 
 def make_synthetic_data(n: int, seed: int):
-    """
-    X[:,0] = directional signal
-    X[:,1] = risk state in [0,1]
-    X[:,2] = direction uncertainty in [0,1]
-
-    y = normalized future return
-
-    The data are deliberately:
-    - heavy-tailed
-    - heteroskedastic
-    - left-skewed in high-risk states
-    """
-
     rng = np.random.default_rng(seed)
 
     signal = rng.normal(size=n)
     risk_state = rng.beta(2.0, 3.0, size=n)
     dir_uncertainty = rng.beta(2.0, 2.0, size=n)
 
-    # Direction signal weakens when direction uncertainty is high.
     mu = (
         0.8
         * np.tanh(signal)
         * (1.0 - 0.7 * dir_uncertainty)
     )
 
-    # Conditional volatility grows with risk.
     sigma = 0.55 + 1.15 * risk_state
 
-    # Heavy-tailed base innovation.
-    eps = rng.standard_t(df=4, size=n) / np.sqrt(2.0)
+    eps = (
+        rng.standard_t(df=4, size=n)
+        / np.sqrt(2.0)
+    )
+
     y = mu + sigma * eps
 
-    # Risk-dependent asymmetric downside shocks.
     p_tail = 0.02 + 0.25 * risk_state**2
-
     shock = rng.random(n) < p_tail
 
     shock_size = (
@@ -189,7 +205,7 @@ def make_synthetic_data(n: int, seed: int):
 
 
 # ============================================================
-# Forecasting model
+# Forecast model
 # ============================================================
 
 class GaussianForecaster(nn.Module):
@@ -226,11 +242,6 @@ class GaussianForecaster(nn.Module):
 # ============================================================
 
 def gaussian_crps(mu, sigma, y):
-    """
-    Closed-form Gaussian CRPS.
-    Lower is better.
-    """
-
     z = (y - mu) / sigma
 
     phi = (
@@ -256,14 +267,7 @@ def gaussian_crps(mu, sigma, y):
 # Financial regions
 # ============================================================
 
-def make_financial_regions(grid, cfg: Config):
-    """
-    Hierarchical soft regions:
-        q_D = near zero / direction boundary
-        q_N = ordinary downside
-        q_T = extreme downside tail
-    """
-
+def make_financial_regions(grid, cfg):
     q_tail = torch.sigmoid(
         (-grid - cfg.tail_threshold)
         / cfg.tail_temp
@@ -286,35 +290,15 @@ def make_financial_regions(grid, cfg: Config):
         )
     )
 
-    return (
-        q_direction,
-        q_downside,
-        q_tail,
-    )
+    return q_direction, q_downside, q_tail
 
 
 # ============================================================
-# Simplex helper
+# Allocation helper
 # ============================================================
 
-def bounded_simplex(logits, min_allocation: float):
-    """
-    Softmax + positive floor.
-
-    For three components:
-        pi_i >= min_allocation
-        sum_i pi_i = 1
-
-    The affine transformation preserves monotonicity of each
-    softmax component.
-    """
-
+def bounded_simplex(logits, min_allocation):
     k = logits.shape[1]
-
-    if min_allocation < 0:
-        raise ValueError(
-            "min_allocation must be >= 0."
-        )
 
     if k * min_allocation >= 1.0:
         raise ValueError(
@@ -338,38 +322,16 @@ def bounded_simplex(logits, min_allocation: float):
 
 
 # ============================================================
-# Semantically monotonic financial prior
+# Financial prior
 # ============================================================
 
 def financial_prior_logits(x):
-    """
-    This prior is intentionally constructed to have monotonic
-    semantics.
-
-    Holding direction uncertainty fixed:
-
-        d g_D / d risk = -0.60
-        d g_N / d risk = +0.20
-        d g_T / d risk = 0.50 + 3.60*risk
-
-    Therefore g_T has the largest risk derivative for all
-    risk in [0,1], so pi_T increases with risk.
-
-    Holding risk fixed:
-
-        d g_D / d dir_unc = +1.40
-        d g_N / d dir_unc = 0
-        d g_T / d dir_unc = 0
-
-    Therefore pi_D increases with direction uncertainty.
-    """
-
     risk = x[:, 1]
-    direction_uncertainty = x[:, 2]
+    dir_unc = x[:, 2]
 
     g_d = (
         0.20
-        + 1.40 * direction_uncertainty
+        + 1.40 * dir_unc
         - 0.60 * risk
     )
 
@@ -390,110 +352,21 @@ def financial_prior_logits(x):
     )
 
 
-def financial_prior(x):
+def financial_prior(x, cfg):
     return bounded_simplex(
         financial_prior_logits(x),
-        CFG.min_allocation,
+        cfg.min_allocation,
     )
 
 
 # ============================================================
-# Unconstrained controllers
-# ============================================================
-
-class NeuralController(nn.Module):
-    """
-    Intentionally unconstrained neural controller.
-    It remains in the experiment as an ablation.
-    """
-
-    def __init__(self):
-        super().__init__()
-
-        self.net = nn.Sequential(
-            nn.Linear(2, 8),
-            nn.Tanh(),
-            nn.Linear(8, 3),
-        )
-
-    def forward(self, x):
-        logits = self.net(
-            x[:, 1:3]
-        )
-
-        return bounded_simplex(
-            logits,
-            CFG.min_allocation,
-        )
-
-
-class HybridController(nn.Module):
-    """
-    Financial prior + bounded but unconstrained neural correction.
-
-    This controller can still violate the desired semantic
-    monotonicity. We keep it as an ablation.
-    """
-
-    def __init__(self, delta=0.35):
-        super().__init__()
-
-        self.delta = delta
-
-        self.net = nn.Sequential(
-            nn.Linear(2, 8),
-            nn.Tanh(),
-            nn.Linear(8, 3),
-        )
-
-    def forward(self, x):
-        prior_logits = financial_prior_logits(x)
-
-        correction = (
-            self.delta
-            * torch.tanh(
-                self.net(
-                    x[:, 1:3]
-                )
-            )
-        )
-
-        final_logits = (
-            prior_logits
-            + correction
-        )
-
-        return bounded_simplex(
-            final_logits,
-            CFG.min_allocation,
-        )
-
-
-# ============================================================
-# Monotonic neural block
+# Monotonic block
 # ============================================================
 
 class Monotonic1D(nn.Module):
-    """
-    One-dimensional monotonic increasing neural function.
-
-    Positive weights are enforced with softplus.
-
-    For x in [0,1]:
-
-        h(x) = sum_j positive_w2_j *
-               softplus(positive_w1_j*x + b1_j)
-               + b2
-
-    Therefore dh/dx >= 0.
-
-    tanh(h(x)) is also monotonic increasing.
-    """
-
     def __init__(self, hidden=6):
         super().__init__()
 
-        # Negative initialization -> small positive softplus weights.
         self.raw_w1 = nn.Parameter(
             torch.full(
                 (hidden,),
@@ -517,8 +390,6 @@ class Monotonic1D(nn.Module):
         )
 
     def forward(self, x):
-        # x: [batch]
-
         w1 = F.softplus(
             self.raw_w1
         )
@@ -528,7 +399,8 @@ class Monotonic1D(nn.Module):
         )
 
         hidden = F.softplus(
-            x[:, None] * w1[None, :]
+            x[:, None]
+            * w1[None, :]
             + self.b1[None, :]
         )
 
@@ -547,29 +419,15 @@ class Monotonic1D(nn.Module):
 # ============================================================
 
 class MonotonicHybridController(nn.Module):
-    """
-    Semantically constrained Hybrid Controller.
-
-    Direction correction depends ONLY on direction uncertainty
-    through a monotonic increasing network.
-
-    Tail correction depends ONLY on risk through a monotonic
-    increasing network.
-
-    Downside logit receives no learned state correction.
-
-    Combined with the monotonic financial prior, this ensures:
-
-        Risk ↑  => pi_T cannot decrease
-        Dir uncertainty ↑ => pi_D cannot decrease
-
-    up to floating-point precision.
-    """
-
-    def __init__(self, delta=0.35):
+    def __init__(
+        self,
+        delta,
+        min_allocation,
+    ):
         super().__init__()
 
         self.delta = delta
+        self.min_allocation = min_allocation
 
         self.dir_correction = Monotonic1D(
             hidden=6
@@ -585,7 +443,6 @@ class MonotonicHybridController(nn.Module):
         risk = x[:, 1]
         dir_unc = x[:, 2]
 
-        # Monotonic increasing bounded corrections.
         corr_d = (
             self.delta
             * torch.tanh(
@@ -613,36 +470,14 @@ class MonotonicHybridController(nn.Module):
             dim=1,
         )
 
-        final_logits = (
-            base_logits
-            + correction
-        )
-
         return bounded_simplex(
-            final_logits,
-            CFG.min_allocation,
+            base_logits + correction,
+            self.min_allocation,
         )
 
 
 # ============================================================
-# Static allocation
-# ============================================================
-
-def static_allocation(x):
-    base = torch.tensor(
-        [0.35, 0.35, 0.30],
-        dtype=x.dtype,
-        device=x.device,
-    )
-
-    return base[None, :].repeat(
-        len(x),
-        1,
-    )
-
-
-# ============================================================
-# Adaptive weighted CRPS
+# Weighted CRPS
 # ============================================================
 
 def adaptive_weighted_crps(
@@ -651,21 +486,11 @@ def adaptive_weighted_crps(
     y,
     allocation,
     grid,
-    q_direction,
-    q_downside,
-    q_tail,
+    qd,
+    qn,
+    qt,
     lambda_fin,
 ):
-    """
-    w_t(z) =
-        1 + lambda_fin *
-        [
-            pi_D q_D(z)
-            + pi_N q_N(z)
-            + pi_T q_T(z)
-        ]
-    """
-
     z = grid[None, :]
 
     forecast_cdf = 0.5 * (
@@ -688,11 +513,11 @@ def adaptive_weighted_crps(
         + lambda_fin
         * (
             allocation[:, 0, None]
-            * q_direction[None, :]
+            * qd[None, :]
             + allocation[:, 1, None]
-            * q_downside[None, :]
+            * qn[None, :]
             + allocation[:, 2, None]
-            * q_tail[None, :]
+            * qt[None, :]
         )
     )
 
@@ -725,314 +550,85 @@ def normal_cdf(x):
 
 
 # ============================================================
-# Method helpers
+# Data preparation
 # ============================================================
 
-METHODS = [
-    "crps",
-    "static",
-    "prior",
-    "neural",
-    "hybrid",
-    "monotonic_hybrid",
-]
-
-
-def build_controller(kind):
-    if kind == "neural":
-        return NeuralController().to(
-            DEVICE
-        )
-
-    if kind == "hybrid":
-        return HybridController(
-            delta=CFG.hybrid_delta
-        ).to(DEVICE)
-
-    if kind == "monotonic_hybrid":
-        return MonotonicHybridController(
-            delta=CFG.hybrid_delta
-        ).to(DEVICE)
-
-    return None
-
-
-def get_allocation(
-    kind,
-    controller,
-    x
-):
-    if kind == "crps":
-        return None
-
-    if kind == "static":
-        return static_allocation(x)
-
-    if kind == "prior":
-        return financial_prior(x)
-
-    if kind in (
-        "neural",
-        "hybrid",
-        "monotonic_hybrid",
-    ):
-        return controller(x)
-
-    raise ValueError(
-        f"Unknown method: {kind}"
+def prepare_seed_data(seed, cfg):
+    X_np, y_np = make_synthetic_data(
+        cfg.n_samples,
+        seed,
     )
 
-
-def prior_kl(pi, x):
-    prior = financial_prior(x)
-
-    return (
-        pi
-        * (
-            torch.log(pi + 1e-8)
-            - torch.log(
-                prior + 1e-8
-            )
-        )
-    ).sum(
-        dim=1
-    ).mean()
-
-
-# ============================================================
-# Validation objective
-# ============================================================
-
-@torch.no_grad()
-def validation_objective(
-    kind,
-    model,
-    controller,
-    X_val,
-    y_val,
-    grid,
-    qd,
-    qn,
-    qt,
-):
-    model.eval()
-
-    if controller is not None:
-        controller.eval()
-
-    mu, sigma = model(
-        X_val
+    split_rng = np.random.default_rng(
+        seed + 9999
     )
 
-    if kind == "crps":
-        return gaussian_crps(
-            mu,
-            sigma,
-            y_val,
-        ).mean().item()
-
-    pi = get_allocation(
-        kind,
-        controller,
-        X_val,
+    indices = split_rng.permutation(
+        cfg.n_samples
     )
 
-    score = adaptive_weighted_crps(
-        mu,
-        sigma,
-        y_val,
-        pi,
-        grid,
-        qd,
-        qn,
-        qt,
-        CFG.lambda_fin,
-    ).mean()
-
-    # Use the same regularized objective used in training
-    # for learned hybrid controllers.
-    if kind in (
-        "hybrid",
-        "monotonic_hybrid",
-    ):
-        score = (
-            score
-            + CFG.prior_kl_weight
-            * prior_kl(
-                pi,
-                X_val
-            )
-        )
-
-    return score.item()
-
-
-# ============================================================
-# Counterfactual monotonicity diagnostics
-# ============================================================
-
-@torch.no_grad()
-def monotonicity_diagnostics(
-    kind,
-    controller,
-):
-    """
-    Counterfactual checks.
-
-    Test 1:
-        hold direction uncertainty = 0.5
-        sweep risk from 0 to 1
-        check pi_T
-
-    Test 2:
-        hold risk = 0.5
-        sweep direction uncertainty from 0 to 1
-        check pi_D
-    """
-
-    if kind == "crps":
-        return {
-            "Risk monotonic violations": float("nan"),
-            "Dir monotonic violations": float("nan"),
-            "Delta pi_T risk 0->1": float("nan"),
-            "Delta pi_D dir 0->1": float("nan"),
-        }
-
-    if controller is not None:
-        controller.eval()
-
-    grid_state = torch.linspace(
-        0.0,
-        1.0,
-        101,
-        device=DEVICE,
+    train_end = cfg.train_size
+    val_end = (
+        cfg.train_size
+        + cfg.val_size
     )
 
-    # --------------------------------------------------------
-    # Risk sweep
-    # --------------------------------------------------------
+    train_idx = indices[:train_end]
+    val_idx = indices[train_end:val_end]
+    test_idx = indices[val_end:]
 
-    x_risk = torch.zeros(
-        (101, 3),
-        device=DEVICE,
-    )
-
-    x_risk[:, 1] = grid_state
-    x_risk[:, 2] = 0.5
-
-    pi_risk = get_allocation(
-        kind,
-        controller,
-        x_risk,
-    )
-
-    tail_curve = pi_risk[:, 2]
-
-    tail_diff = (
-        tail_curve[1:]
-        - tail_curve[:-1]
-    )
-
-    risk_violations = int(
-        (
-            tail_diff
-            < -CFG.monotonic_tol
-        )
-        .sum()
-        .item()
-    )
-
-    # --------------------------------------------------------
-    # Direction uncertainty sweep
-    # --------------------------------------------------------
-
-    x_dir = torch.zeros(
-        (101, 3),
-        device=DEVICE,
-    )
-
-    x_dir[:, 1] = 0.5
-    x_dir[:, 2] = grid_state
-
-    pi_dir = get_allocation(
-        kind,
-        controller,
-        x_dir,
-    )
-
-    direction_curve = pi_dir[:, 0]
-
-    direction_diff = (
-        direction_curve[1:]
-        - direction_curve[:-1]
-    )
-
-    dir_violations = int(
-        (
-            direction_diff
-            < -CFG.monotonic_tol
-        )
-        .sum()
-        .item()
-    )
-
-    return {
-        "Risk monotonic violations":
-            risk_violations,
-
-        "Dir monotonic violations":
-            dir_violations,
-
-        "Delta pi_T risk 0->1":
-            (
-                tail_curve[-1]
-                - tail_curve[0]
-            ).item(),
-
-        "Delta pi_D dir 0->1":
-            (
-                direction_curve[-1]
-                - direction_curve[0]
-            ).item(),
+    data = {
+        "X_train": torch.tensor(
+            X_np[train_idx],
+            device=DEVICE,
+        ),
+        "y_train": torch.tensor(
+            y_np[train_idx],
+            device=DEVICE,
+        ),
+        "X_val": torch.tensor(
+            X_np[val_idx],
+            device=DEVICE,
+        ),
+        "y_val": torch.tensor(
+            y_np[val_idx],
+            device=DEVICE,
+        ),
+        "X_test": torch.tensor(
+            X_np[test_idx],
+            device=DEVICE,
+        ),
+        "y_test": torch.tensor(
+            y_np[test_idx],
+            device=DEVICE,
+        ),
     }
 
+    return data
+
 
 # ============================================================
-# Evaluation
+# Metrics
 # ============================================================
 
 @torch.no_grad()
-def evaluate(
-    kind,
+def evaluate_forecast(
     model,
     controller,
     X,
     y,
-    grid,
-    qd,
-    qn,
-    qt,
+    cfg,
 ):
     model.eval()
-
-    if controller is not None:
-        controller.eval()
+    controller.eval()
 
     mu, sigma = model(X)
-
-    # --------------------------------------------------------
-    # CRPS
-    # --------------------------------------------------------
 
     crps = gaussian_crps(
         mu,
         sigma,
         y,
     )
-
-    # --------------------------------------------------------
-    # Direction Brier
-    # --------------------------------------------------------
 
     p_up = (
         1.0
@@ -1050,12 +646,8 @@ def evaluate(
         p_up - y_up
     ) ** 2
 
-    # --------------------------------------------------------
-    # Tail Brier
-    # --------------------------------------------------------
-
     threshold = (
-        -CFG.tail_threshold
+        -cfg.tail_threshold
     )
 
     p_tail = normal_cdf(
@@ -1071,16 +663,114 @@ def evaluate(
         p_tail - y_tail
     ) ** 2
 
-    # --------------------------------------------------------
-    # Stress subset
-    # --------------------------------------------------------
+    stress_mask = (
+        X[:, 1]
+        > cfg.stress_threshold
+    )
+
+    pi = controller(X)
+
+    return {
+        "CRPS":
+            crps.mean().item(),
+
+        "Direction Brier":
+            direction_brier.mean().item(),
+
+        "Tail Brier":
+            tail_brier.mean().item(),
+
+        "Stress CRPS":
+            crps[stress_mask].mean().item()
+            if stress_mask.any()
+            else float("nan"),
+
+        "Stress Tail Brier":
+            tail_brier[stress_mask].mean().item()
+            if stress_mask.any()
+            else float("nan"),
+
+        "Mean predicted tail probability":
+            p_tail.mean().item(),
+
+        "Observed tail frequency":
+            y_tail.mean().item(),
+
+        "Stress predicted tail probability":
+            p_tail[stress_mask].mean().item()
+            if stress_mask.any()
+            else float("nan"),
+
+        "Stress observed tail frequency":
+            y_tail[stress_mask].mean().item()
+            if stress_mask.any()
+            else float("nan"),
+
+        "Mean pi_D":
+            pi[:, 0].mean().item(),
+
+        "Mean pi_N":
+            pi[:, 1].mean().item(),
+
+        "Mean pi_T":
+            pi[:, 2].mean().item(),
+    }
+
+
+@torch.no_grad()
+def evaluate_crps_baseline(
+    model,
+    X,
+    y,
+    cfg,
+):
+    model.eval()
+
+    mu, sigma = model(X)
+
+    crps = gaussian_crps(
+        mu,
+        sigma,
+        y,
+    )
+
+    p_up = (
+        1.0
+        - normal_cdf(
+            (0.0 - mu)
+            / sigma
+        )
+    )
+
+    y_up = (
+        y > 0.0
+    ).float()
+
+    direction_brier = (
+        p_up - y_up
+    ) ** 2
+
+    threshold = -cfg.tail_threshold
+
+    p_tail = normal_cdf(
+        (threshold - mu)
+        / sigma
+    )
+
+    y_tail = (
+        y < threshold
+    ).float()
+
+    tail_brier = (
+        p_tail - y_tail
+    ) ** 2
 
     stress_mask = (
         X[:, 1]
-        > CFG.stress_threshold
+        > cfg.stress_threshold
     )
 
-    result = {
+    return {
         "CRPS":
             crps.mean().item(),
 
@@ -1117,220 +807,110 @@ def evaluate(
             else float("nan"),
     }
 
-    # --------------------------------------------------------
-    # Allocation diagnostics
-    # --------------------------------------------------------
-
-    if kind != "crps":
-        pi = get_allocation(
-            kind,
-            controller,
-            X,
-        )
-
-        result["Mean pi_D"] = (
-            pi[:, 0]
-            .mean()
-            .item()
-        )
-
-        result["Mean pi_N"] = (
-            pi[:, 1]
-            .mean()
-            .item()
-        )
-
-        result["Mean pi_T"] = (
-            pi[:, 2]
-            .mean()
-            .item()
-        )
-
-        risk_np = (
-            X[:, 1]
-            .detach()
-            .cpu()
-            .numpy()
-        )
-
-        dir_unc_np = (
-            X[:, 2]
-            .detach()
-            .cpu()
-            .numpy()
-        )
-
-        pi_np = (
-            pi.detach()
-            .cpu()
-            .numpy()
-        )
-
-        result["Corr(risk, pi_T)"] = (
-            np.corrcoef(
-                risk_np,
-                pi_np[:, 2]
-            )[0, 1]
-            if (
-                np.std(risk_np) > 1e-8
-                and np.std(pi_np[:, 2]) > 1e-8
-            )
-            else 0.0
-        )
-
-        result["Corr(dir_unc, pi_D)"] = (
-            np.corrcoef(
-                dir_unc_np,
-                pi_np[:, 0]
-            )[0, 1]
-            if (
-                np.std(dir_unc_np) > 1e-8
-                and np.std(pi_np[:, 0]) > 1e-8
-            )
-            else 0.0
-        )
-
-        floor = CFG.min_allocation
-
-        result["Near-floor pi_D rate"] = (
-            (
-                pi[:, 0]
-                <= floor + 0.005
-            )
-            .float()
-            .mean()
-            .item()
-        )
-
-        result["Near-floor pi_N rate"] = (
-            (
-                pi[:, 1]
-                <= floor + 0.005
-            )
-            .float()
-            .mean()
-            .item()
-        )
-
-        result["Near-floor pi_T rate"] = (
-            (
-                pi[:, 2]
-                <= floor + 0.005
-            )
-            .float()
-            .mean()
-            .item()
-        )
-
-    result.update(
-        monotonicity_diagnostics(
-            kind,
-            controller,
-        )
-    )
-
-    return result
-
 
 # ============================================================
-# Allocation by risk bin
+# Monotonicity diagnostics
 # ============================================================
 
 @torch.no_grad()
-def allocation_by_risk_bin(
-    seed,
-    kind,
+def monotonicity_diagnostics(
     controller,
-    X,
+    cfg,
 ):
-    if kind == "crps":
-        return []
+    controller.eval()
 
-    if controller is not None:
-        controller.eval()
-
-    pi = get_allocation(
-        kind,
-        controller,
-        X,
+    state_grid = torch.linspace(
+        0.0,
+        1.0,
+        101,
+        device=DEVICE,
     )
 
-    risk = X[:, 1]
+    # Risk sweep
+    x_risk = torch.zeros(
+        (101, 3),
+        device=DEVICE,
+    )
 
-    masks = {
-        "Low": (
-            risk
-            < CFG.low_risk_max
-        ),
+    x_risk[:, 1] = state_grid
+    x_risk[:, 2] = 0.5
 
-        "Medium": (
-            (risk >= CFG.low_risk_max)
-            & (risk < CFG.high_risk_min)
-        ),
+    pi_risk = controller(
+        x_risk
+    )
 
-        "High": (
-            risk
-            >= CFG.high_risk_min
-        ),
+    tail_curve = pi_risk[:, 2]
+
+    risk_violations = int(
+        (
+            (
+                tail_curve[1:]
+                - tail_curve[:-1]
+            )
+            < -cfg.monotonic_tol
+        )
+        .sum()
+        .item()
+    )
+
+    # Direction sweep
+    x_dir = torch.zeros(
+        (101, 3),
+        device=DEVICE,
+    )
+
+    x_dir[:, 1] = 0.5
+    x_dir[:, 2] = state_grid
+
+    pi_dir = controller(
+        x_dir
+    )
+
+    dir_curve = pi_dir[:, 0]
+
+    dir_violations = int(
+        (
+            (
+                dir_curve[1:]
+                - dir_curve[:-1]
+            )
+            < -cfg.monotonic_tol
+        )
+        .sum()
+        .item()
+    )
+
+    return {
+        "Risk monotonic violations":
+            risk_violations,
+
+        "Dir monotonic violations":
+            dir_violations,
+
+        "Delta pi_T risk 0->1":
+            (
+                tail_curve[-1]
+                - tail_curve[0]
+            ).item(),
+
+        "Delta pi_D dir 0->1":
+            (
+                dir_curve[-1]
+                - dir_curve[0]
+            ).item(),
     }
 
-    rows = []
-
-    for risk_bin, mask in masks.items():
-        if not mask.any():
-            continue
-
-        rows.append(
-            {
-                "Seed": seed,
-                "Method": kind,
-                "Risk Bin": risk_bin,
-                "Count": int(
-                    mask.sum().item()
-                ),
-                "pi_D": (
-                    pi[mask, 0]
-                    .mean()
-                    .item()
-                ),
-                "pi_N": (
-                    pi[mask, 1]
-                    .mean()
-                    .item()
-                ),
-                "pi_T": (
-                    pi[mask, 2]
-                    .mean()
-                    .item()
-                ),
-            }
-        )
-
-    return rows
-
 
 # ============================================================
-# Training
+# Train baseline
 # ============================================================
 
-def train_model(
+def train_crps_baseline(
     seed,
-    kind,
+    data,
     base_model_state,
-    X_train,
-    y_train,
-    X_val,
-    y_val,
-    grid,
-    qd,
-    qn,
-    qt,
+    cfg,
 ):
-    """
-    Every method starts from the same forecaster initialization
-    within each seed.
-    """
-
     model = GaussianForecaster().to(
         DEVICE
     )
@@ -1341,62 +921,23 @@ def train_model(
         )
     )
 
-    controller_seed = (
-        seed * 1000
-        + {
-            "crps": 0,
-            "static": 1,
-            "prior": 2,
-            "neural": 3,
-            "hybrid": 4,
-            "monotonic_hybrid": 5,
-        }[kind]
-    )
-
-    torch.manual_seed(
-        controller_seed
-    )
-
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(
-            controller_seed
-        )
-
-    controller = build_controller(
-        kind
-    )
-
-    params = list(
-        model.parameters()
-    )
-
-    if controller is not None:
-        params += list(
-            controller.parameters()
-        )
-
     optimizer = torch.optim.Adam(
-        params,
-        lr=CFG.lr,
+        model.parameters(),
+        lr=cfg.lr,
     )
 
     best_state = None
     best_val = float("inf")
-    best_epoch = -1
 
     n = len(
-        X_train
+        data["X_train"]
     )
 
     for epoch in range(
-        CFG.epochs
+        cfg.epochs
     ):
         model.train()
 
-        if controller is not None:
-            controller.train()
-
-        # Same batch ordering across methods for a seed.
         generator = torch.Generator(
             device="cpu"
         )
@@ -1414,419 +955,508 @@ def train_model(
         for start in range(
             0,
             n,
-            CFG.batch_size,
+            cfg.batch_size,
         ):
-            idx_cpu = order[
+            idx = order[
                 start:
-                start + CFG.batch_size
-            ]
+                start + cfg.batch_size
+            ].to(DEVICE)
 
-            idx = idx_cpu.to(
-                DEVICE
-            )
+            xb = data[
+                "X_train"
+            ][idx]
 
-            xb = X_train[idx]
-            yb = y_train[idx]
+            yb = data[
+                "y_train"
+            ][idx]
 
             mu, sigma = model(
                 xb
             )
 
-            # ------------------------------------------------
-            # CRPS baseline
-            # ------------------------------------------------
-
-            if kind == "crps":
-                loss = gaussian_crps(
-                    mu,
-                    sigma,
-                    yb,
-                ).mean()
-
-            # ------------------------------------------------
-            # Adaptive variants
-            # ------------------------------------------------
-
-            else:
-                pi = get_allocation(
-                    kind,
-                    controller,
-                    xb,
-                )
-
-                loss = adaptive_weighted_crps(
-                    mu,
-                    sigma,
-                    yb,
-                    pi,
-                    grid,
-                    qd,
-                    qn,
-                    qt,
-                    CFG.lambda_fin,
-                ).mean()
-
-                # Learned hybrid controllers receive a prior
-                # closeness regularizer.
-                if kind in (
-                    "hybrid",
-                    "monotonic_hybrid",
-                ):
-                    loss = (
-                        loss
-                        + CFG.prior_kl_weight
-                        * prior_kl(
-                            pi,
-                            xb,
-                        )
-                    )
+            loss = gaussian_crps(
+                mu,
+                sigma,
+                yb,
+            ).mean()
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        # ----------------------------------------------------
-        # Validation checkpoint
-        # ----------------------------------------------------
+        model.eval()
 
-        val_score = validation_objective(
-            kind,
-            model,
-            controller,
-            X_val,
-            y_val,
-            grid,
-            qd,
-            qn,
-            qt,
+        with torch.no_grad():
+            mu_v, sigma_v = model(
+                data["X_val"]
+            )
+
+            val = gaussian_crps(
+                mu_v,
+                sigma_v,
+                data["y_val"],
+            ).mean().item()
+
+        if val < best_val:
+            best_val = val
+
+            best_state = deepcopy(
+                model.state_dict()
+            )
+
+    model.load_state_dict(
+        best_state
+    )
+
+    return model
+
+
+# ============================================================
+# Train one monotonic-hybrid configuration
+# ============================================================
+
+def train_monotonic_config(
+    seed,
+    data,
+    base_model_state,
+    cfg,
+):
+    model = GaussianForecaster().to(
+        DEVICE
+    )
+
+    model.load_state_dict(
+        deepcopy(
+            base_model_state
+        )
+    )
+
+    torch.manual_seed(
+        seed * 1000 + 777
+    )
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(
+            seed * 1000 + 777
         )
 
-        if val_score < best_val:
-            best_val = val_score
-            best_epoch = epoch + 1
+    controller = MonotonicHybridController(
+        delta=cfg.hybrid_delta,
+        min_allocation=cfg.min_allocation,
+    ).to(DEVICE)
+
+    params = (
+        list(model.parameters())
+        + list(controller.parameters())
+    )
+
+    optimizer = torch.optim.Adam(
+        params,
+        lr=cfg.lr,
+    )
+
+    grid = torch.linspace(
+        cfg.z_min,
+        cfg.z_max,
+        cfg.n_grid,
+        device=DEVICE,
+    )
+
+    qd, qn, qt = make_financial_regions(
+        grid,
+        cfg,
+    )
+
+    best_state = None
+    best_val = float("inf")
+
+    n = len(
+        data["X_train"]
+    )
+
+    for epoch in range(
+        cfg.epochs
+    ):
+        model.train()
+        controller.train()
+
+        generator = torch.Generator(
+            device="cpu"
+        )
+
+        generator.manual_seed(
+            seed * 100000
+            + epoch
+        )
+
+        order = torch.randperm(
+            n,
+            generator=generator,
+        )
+
+        for start in range(
+            0,
+            n,
+            cfg.batch_size,
+        ):
+            idx = order[
+                start:
+                start + cfg.batch_size
+            ].to(DEVICE)
+
+            xb = data[
+                "X_train"
+            ][idx]
+
+            yb = data[
+                "y_train"
+            ][idx]
+
+            mu, sigma = model(
+                xb
+            )
+
+            pi = controller(
+                xb
+            )
+
+            score = adaptive_weighted_crps(
+                mu,
+                sigma,
+                yb,
+                pi,
+                grid,
+                qd,
+                qn,
+                qt,
+                cfg.lambda_fin,
+            ).mean()
+
+            prior = financial_prior(
+                xb,
+                cfg,
+            )
+
+            kl = (
+                pi
+                * (
+                    torch.log(
+                        pi + 1e-8
+                    )
+                    - torch.log(
+                        prior + 1e-8
+                    )
+                )
+            ).sum(
+                dim=1
+            ).mean()
+
+            loss = (
+                score
+                + cfg.prior_kl_weight
+                * kl
+            )
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        # validation objective
+        model.eval()
+        controller.eval()
+
+        with torch.no_grad():
+            mu_v, sigma_v = model(
+                data["X_val"]
+            )
+
+            pi_v = controller(
+                data["X_val"]
+            )
+
+            score_v = adaptive_weighted_crps(
+                mu_v,
+                sigma_v,
+                data["y_val"],
+                pi_v,
+                grid,
+                qd,
+                qn,
+                qt,
+                cfg.lambda_fin,
+            ).mean()
+
+            prior_v = financial_prior(
+                data["X_val"],
+                cfg,
+            )
+
+            kl_v = (
+                pi_v
+                * (
+                    torch.log(
+                        pi_v + 1e-8
+                    )
+                    - torch.log(
+                        prior_v + 1e-8
+                    )
+                )
+            ).sum(
+                dim=1
+            ).mean()
+
+            val = (
+                score_v
+                + cfg.prior_kl_weight
+                * kl_v
+            ).item()
+
+        if val < best_val:
+            best_val = val
 
             best_state = {
-                "model": deepcopy(
-                    model.state_dict()
-                ),
+                "model":
+                    deepcopy(
+                        model.state_dict()
+                    ),
 
-                "controller": (
+                "controller":
                     deepcopy(
                         controller.state_dict()
-                    )
-                    if controller is not None
-                    else None
-                ),
+                    ),
             }
 
     model.load_state_dict(
         best_state["model"]
     )
 
-    if controller is not None:
-        controller.load_state_dict(
-            best_state[
-                "controller"
-            ]
+    controller.load_state_dict(
+        best_state["controller"]
+    )
+
+    return model, controller
+
+
+# ============================================================
+# Cache development data and baselines
+# ============================================================
+
+def build_dev_cache():
+    cache = {}
+
+    print(
+        "\nPreparing development seeds "
+        "and CRPS baselines..."
+    )
+
+    for seed in DEV_SEEDS:
+        print(
+            f"  Baseline seed {seed}"
         )
 
-    return (
-        model,
-        controller,
-        best_epoch,
-        best_val,
-    )
+        set_global_seed(
+            seed
+        )
 
+        data = prepare_seed_data(
+            seed,
+            BASE_CFG,
+        )
 
-# ============================================================
-# One seed
-# ============================================================
-
-def run_one_seed(seed: int):
-    set_global_seed(seed)
-
-    X_np, y_np = make_synthetic_data(
-        CFG.n_samples,
-        seed,
-    )
-
-    split_rng = np.random.default_rng(
-        seed + 9999
-    )
-
-    indices = split_rng.permutation(
-        CFG.n_samples
-    )
-
-    train_end = CFG.train_size
-
-    val_end = (
-        CFG.train_size
-        + CFG.val_size
-    )
-
-    train_idx = indices[
-        :train_end
-    ]
-
-    val_idx = indices[
-        train_end:
-        val_end
-    ]
-
-    test_idx = indices[
-        val_end:
-    ]
-
-    X_train = torch.tensor(
-        X_np[train_idx],
-        device=DEVICE,
-    )
-
-    y_train = torch.tensor(
-        y_np[train_idx],
-        device=DEVICE,
-    )
-
-    X_val = torch.tensor(
-        X_np[val_idx],
-        device=DEVICE,
-    )
-
-    y_val = torch.tensor(
-        y_np[val_idx],
-        device=DEVICE,
-    )
-
-    X_test = torch.tensor(
-        X_np[test_idx],
-        device=DEVICE,
-    )
-
-    y_test = torch.tensor(
-        y_np[test_idx],
-        device=DEVICE,
-    )
-
-    grid = torch.linspace(
-        CFG.z_min,
-        CFG.z_max,
-        CFG.n_grid,
-        device=DEVICE,
-    )
-
-    qd, qn, qt = make_financial_regions(
-        grid,
-        CFG,
-    )
-
-    # Same forecast-model initialization for all methods.
-    torch.manual_seed(
-        seed + 12345
-    )
-
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(
+        torch.manual_seed(
             seed + 12345
         )
 
-    base_model = GaussianForecaster().to(
-        DEVICE
-    )
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(
+                seed + 12345
+            )
 
-    base_model_state = deepcopy(
-        base_model.state_dict()
-    )
-
-    metric_rows = []
-    allocation_rows = []
-
-    for kind in METHODS:
-        print(
-            f"  Training: {kind}"
+        base_model = GaussianForecaster().to(
+            DEVICE
         )
 
-        model, controller, best_epoch, best_val = train_model(
+        base_model_state = deepcopy(
+            base_model.state_dict()
+        )
+
+        baseline_model = train_crps_baseline(
             seed,
-            kind,
+            data,
             base_model_state,
-            X_train,
-            y_train,
-            X_val,
-            y_val,
-            grid,
-            qd,
-            qn,
-            qt,
+            BASE_CFG,
         )
 
-        metrics = evaluate(
-            kind,
+        baseline_metrics = evaluate_crps_baseline(
+            baseline_model,
+            data["X_test"],
+            data["y_test"],
+            BASE_CFG,
+        )
+
+        cache[seed] = {
+            "data":
+                data,
+
+            "base_model_state":
+                base_model_state,
+
+            "baseline_metrics":
+                baseline_metrics,
+        }
+
+    return cache
+
+
+# ============================================================
+# Evaluate one hyperparameter configuration
+# ============================================================
+
+def evaluate_configuration(
+    config_id,
+    stage,
+    cfg,
+    cache,
+):
+    rows = []
+
+    print(
+        f"\n[{stage}] {config_id}"
+        f" | lambda={cfg.lambda_fin}"
+        f" delta={cfg.hybrid_delta}"
+        f" kl={cfg.prior_kl_weight}"
+        f" min_alloc={cfg.min_allocation}"
+    )
+
+    for seed in DEV_SEEDS:
+        item = cache[
+            seed
+        ]
+
+        model, controller = train_monotonic_config(
+            seed,
+            item["data"],
+            item["base_model_state"],
+            cfg,
+        )
+
+        metrics = evaluate_forecast(
             model,
             controller,
-            X_test,
-            y_test,
-            grid,
-            qd,
-            qn,
-            qt,
+            item["data"]["X_test"],
+            item["data"]["y_test"],
+            cfg,
         )
 
-        metrics["Seed"] = seed
-        metrics["Method"] = kind
-        metrics["Best Epoch"] = best_epoch
-        metrics["Best Validation Objective"] = best_val
-
-        metric_rows.append(
-            metrics
+        mono = monotonicity_diagnostics(
+            controller,
+            cfg,
         )
 
-        allocation_rows.extend(
-            allocation_by_risk_bin(
+        baseline = item[
+            "baseline_metrics"
+        ]
+
+        crps_delta = (
+            metrics["CRPS"]
+            - baseline["CRPS"]
+        )
+
+        crps_delta_pct = (
+            100.0
+            * crps_delta
+            / baseline["CRPS"]
+        )
+
+        row = {
+            "Stage":
+                stage,
+
+            "Config ID":
+                config_id,
+
+            "Seed":
                 seed,
-                kind,
-                controller,
-                X_test,
-            )
+
+            "lambda_fin":
+                cfg.lambda_fin,
+
+            "hybrid_delta":
+                cfg.hybrid_delta,
+
+            "prior_kl_weight":
+                cfg.prior_kl_weight,
+
+            "min_allocation":
+                cfg.min_allocation,
+
+            **metrics,
+            **mono,
+
+            "Baseline CRPS":
+                baseline["CRPS"],
+
+            "Baseline Direction Brier":
+                baseline["Direction Brier"],
+
+            "Baseline Tail Brier":
+                baseline["Tail Brier"],
+
+            "Baseline Stress CRPS":
+                baseline["Stress CRPS"],
+
+            "Baseline Stress Tail Brier":
+                baseline[
+                    "Stress Tail Brier"
+                ],
+
+            "CRPS Delta":
+                crps_delta,
+
+            "CRPS Delta %":
+                crps_delta_pct,
+
+            "Direction Brier Delta":
+                (
+                    metrics["Direction Brier"]
+                    - baseline["Direction Brier"]
+                ),
+
+            "Tail Brier Delta":
+                (
+                    metrics["Tail Brier"]
+                    - baseline["Tail Brier"]
+                ),
+
+            "Stress CRPS Delta":
+                (
+                    metrics["Stress CRPS"]
+                    - baseline["Stress CRPS"]
+                ),
+
+            "Stress Tail Brier Delta":
+                (
+                    metrics["Stress Tail Brier"]
+                    - baseline[
+                        "Stress Tail Brier"
+                    ]
+                ),
+        }
+
+        rows.append(
+            row
         )
 
-    return (
-        metric_rows,
-        allocation_rows,
-    )
+    return rows
 
 
 # ============================================================
-# Reporting helpers
+# Aggregate configurations
 # ============================================================
 
-def format_mean_std(
-    mean_value,
-    std_value,
-):
-    if pd.isna(mean_value):
-        return "NaN"
-
-    if pd.isna(std_value):
-        return (
-            f"{mean_value:.6f}"
-        )
-
-    return (
-        f"{mean_value:.6f}"
-        f" ± "
-        f"{std_value:.6f}"
-    )
-
-
-def make_summary_table(
-    metrics_df
-):
-    main_metrics = [
-        "CRPS",
-        "Direction Brier",
-        "Tail Brier",
-        "Stress CRPS",
-        "Stress Tail Brier",
-        "Mean predicted tail probability",
-        "Observed tail frequency",
-        "Stress predicted tail probability",
-        "Stress observed tail frequency",
-        "Mean pi_D",
-        "Mean pi_N",
-        "Mean pi_T",
-        "Corr(risk, pi_T)",
-        "Corr(dir_unc, pi_D)",
-        "Near-floor pi_D rate",
-        "Near-floor pi_N rate",
-        "Near-floor pi_T rate",
-        "Risk monotonic violations",
-        "Dir monotonic violations",
-        "Delta pi_T risk 0->1",
-        "Delta pi_D dir 0->1",
-        "Best Epoch",
-    ]
-
-    means = (
-        metrics_df
-        .groupby("Method")[
-            main_metrics
-        ]
-        .mean()
-    )
-
-    stds = (
-        metrics_df
-        .groupby("Method")[
-            main_metrics
-        ]
-        .std(ddof=1)
-    )
-
-    rows = {}
-
-    for method in means.index:
-        rows[method] = {}
-
-        for metric in main_metrics:
-            rows[method][metric] = (
-                format_mean_std(
-                    means.loc[
-                        method,
-                        metric,
-                    ],
-                    stds.loc[
-                        method,
-                        metric,
-                    ],
-                )
-            )
-
-    return pd.DataFrame.from_dict(
-        rows,
-        orient="index",
-    )
-
-
-def make_numeric_summary(
-    metrics_df
-):
-    numeric_cols = (
-        metrics_df
-        .select_dtypes(
-            include=[np.number]
-        )
-        .columns
-        .tolist()
-    )
-
-    numeric_cols = [
-        c
-        for c in numeric_cols
-        if c != "Seed"
-    ]
-
-    summary = (
-        metrics_df
-        .groupby("Method")[
-            numeric_cols
-        ]
-        .agg(
-            ["mean", "std"]
-        )
-    )
-
-    summary.columns = [
-        f"{metric}_{stat}"
-        for metric, stat
-        in summary.columns
-    ]
-
-    return summary.reset_index()
-
-
-def paired_deltas_vs_crps(
-    metrics_df
+def aggregate_configs(
+    per_seed_df,
+    cfg_template,
 ):
     metrics = [
         "CRPS",
@@ -1834,394 +1464,628 @@ def paired_deltas_vs_crps(
         "Tail Brier",
         "Stress CRPS",
         "Stress Tail Brier",
-    ]
-
-    baseline = (
-        metrics_df[
-            metrics_df["Method"]
-            == "crps"
-        ]
-        .set_index("Seed")
-    )
-
-    rows = []
-
-    for method in [
-        x
-        for x in METHODS
-        if x != "crps"
-    ]:
-        current = (
-            metrics_df[
-                metrics_df["Method"]
-                == method
-            ]
-            .set_index("Seed")
-        )
-
-        common_seeds = (
-            baseline.index
-            .intersection(
-                current.index
-            )
-        )
-
-        for metric in metrics:
-            delta = (
-                current.loc[
-                    common_seeds,
-                    metric,
-                ]
-                - baseline.loc[
-                    common_seeds,
-                    metric,
-                ]
-            )
-
-            base_values = baseline.loc[
-                common_seeds,
-                metric,
-            ]
-
-            relative_pct = (
-                100.0
-                * delta
-                / base_values
-            )
-
-            rows.append(
-                {
-                    "Method":
-                        method,
-
-                    "Metric":
-                        metric,
-
-                    "Mean Delta":
-                        delta.mean(),
-
-                    "Std Delta":
-                        delta.std(
-                            ddof=1
-                        ),
-
-                    "Mean Relative Change %":
-                        relative_pct.mean(),
-
-                    "Seeds Better Than CRPS":
-                        int(
-                            (delta < 0)
-                            .sum()
-                        ),
-
-                    "Total Seeds":
-                        int(
-                            len(delta)
-                        ),
-                }
-            )
-
-    return pd.DataFrame(
-        rows
-    )
-
-
-def summarize_allocations(
-    allocation_df
-):
-    if allocation_df.empty:
-        return pd.DataFrame()
-
-    grouped = (
-        allocation_df
-        .groupby(
-            [
-                "Method",
-                "Risk Bin",
-            ]
-        )[
-            [
-                "pi_D",
-                "pi_N",
-                "pi_T",
-            ]
-        ]
-        .agg(
-            ["mean", "std"]
-        )
-    )
-
-    grouped.columns = [
-        f"{metric}_{stat}"
-        for metric, stat
-        in grouped.columns
-    ]
-
-    return grouped.reset_index()
-
-
-# ============================================================
-# Main
-# ============================================================
-
-def main():
-    pd.set_option(
-        "display.max_columns",
-        None,
-    )
-
-    pd.set_option(
-        "display.width",
-        260,
-    )
-
-    pd.set_option(
-        "display.max_colwidth",
-        None,
-    )
-
-    print("=" * 130)
-    print("SAFPS v0.1.2 — MONOTONIC CONTROLLER CORRECTION")
-    print("=" * 130)
-    print(f"Device: {DEVICE}")
-    print(f"Seeds: {CFG.n_seeds}")
-    print(f"Methods: {', '.join(METHODS)}")
-    print(f"Epochs per model: {CFG.epochs}")
-    print(f"Minimum allocation: {CFG.min_allocation:.3f}")
-    print("=" * 130)
-
-    all_metric_rows = []
-    all_allocation_rows = []
-
-    seeds = [
-        CFG.seed_start + i
-        for i in range(
-            CFG.n_seeds
-        )
-    ]
-
-    for i, seed in enumerate(
-        seeds,
-        start=1,
-    ):
-        print(
-            f"\nSeed {i}/{CFG.n_seeds}: {seed}"
-        )
-
-        metric_rows, allocation_rows = run_one_seed(
-            seed
-        )
-
-        all_metric_rows.extend(
-            metric_rows
-        )
-
-        all_allocation_rows.extend(
-            allocation_rows
-        )
-
-    metrics_df = pd.DataFrame(
-        all_metric_rows
-    )
-
-    allocation_df = pd.DataFrame(
-        all_allocation_rows
-    )
-
-    # --------------------------------------------------------
-    # Save raw results
-    # --------------------------------------------------------
-
-    metrics_df.to_csv(
-        "safps_v012_per_seed_metrics.csv",
-        index=False,
-    )
-
-    allocation_df.to_csv(
-        "safps_v012_per_seed_allocations.csv",
-        index=False,
-    )
-
-    # --------------------------------------------------------
-    # Main summary
-    # --------------------------------------------------------
-
-    summary_display = make_summary_table(
-        metrics_df
-    )
-
-    numeric_summary = make_numeric_summary(
-        metrics_df
-    )
-
-    numeric_summary.to_csv(
-        "safps_v012_summary_numeric.csv",
-        index=False,
-    )
-
-    key_columns = [
-        "CRPS",
-        "Direction Brier",
-        "Tail Brier",
-        "Stress CRPS",
-        "Stress Tail Brier",
-    ]
-
-    print("\n" + "=" * 130)
-    print("MAIN RESULTS: MEAN ± STD ACROSS SEEDS")
-    print("=" * 130)
-
-    print(
-        summary_display[
-            key_columns
-        ].to_string()
-    )
-
-    # --------------------------------------------------------
-    # Monotonicity / controller semantics
-    # --------------------------------------------------------
-
-    semantic_columns = [
-        "Mean pi_D",
-        "Mean pi_N",
-        "Mean pi_T",
-        "Corr(risk, pi_T)",
-        "Corr(dir_unc, pi_D)",
-        "Risk monotonic violations",
-        "Dir monotonic violations",
-        "Delta pi_T risk 0->1",
-        "Delta pi_D dir 0->1",
-        "Near-floor pi_D rate",
-        "Near-floor pi_N rate",
-        "Near-floor pi_T rate",
-    ]
-
-    print("\n" + "=" * 130)
-    print("CONTROLLER SEMANTICS AND MONOTONICITY")
-    print("=" * 130)
-
-    print(
-        summary_display[
-            semantic_columns
-        ].to_string()
-    )
-
-    # --------------------------------------------------------
-    # Tail calibration
-    # --------------------------------------------------------
-
-    tail_columns = [
         "Mean predicted tail probability",
         "Observed tail frequency",
         "Stress predicted tail probability",
         "Stress observed tail frequency",
+        "Mean pi_D",
+        "Mean pi_N",
+        "Mean pi_T",
+        "Risk monotonic violations",
+        "Dir monotonic violations",
+        "Delta pi_T risk 0->1",
+        "Delta pi_D dir 0->1",
+        "CRPS Delta",
+        "CRPS Delta %",
+        "Direction Brier Delta",
+        "Tail Brier Delta",
+        "Stress CRPS Delta",
+        "Stress Tail Brier Delta",
     ]
 
-    print("\n" + "=" * 130)
-    print("TAIL-PROBABILITY DIAGNOSTICS")
-    print("=" * 130)
+    group_cols = [
+        "Stage",
+        "Config ID",
+        "lambda_fin",
+        "hybrid_delta",
+        "prior_kl_weight",
+        "min_allocation",
+    ]
+
+    mean_df = (
+        per_seed_df
+        .groupby(
+            group_cols
+        )[metrics]
+        .mean()
+        .reset_index()
+    )
+
+    std_df = (
+        per_seed_df
+        .groupby(
+            group_cols
+        )[metrics]
+        .std(
+            ddof=1
+        )
+        .reset_index()
+    )
+
+    std_df = std_df.rename(
+        columns={
+            col: f"{col} STD"
+            for col in metrics
+        }
+    )
+
+    summary = mean_df.merge(
+        std_df,
+        on=group_cols,
+        how="left",
+    )
+
+    # Research constraints
+    summary[
+        "Monotonic OK"
+    ] = (
+        (
+            summary[
+                "Risk monotonic violations"
+            ]
+            == 0
+        )
+        &
+        (
+            summary[
+                "Dir monotonic violations"
+            ]
+            == 0
+        )
+    )
+
+    summary[
+        "CRPS Constraint OK"
+    ] = (
+        summary[
+            "CRPS Delta %"
+        ]
+        <= cfg_template.max_crps_degradation_pct
+    )
+
+    summary[
+        "Eligible"
+    ] = (
+        summary[
+            "Monotonic OK"
+        ]
+        &
+        summary[
+            "CRPS Constraint OK"
+        ]
+    )
+
+    # Rank:
+    # 1) eligible first
+    # 2) lower Stress Tail Brier
+    # 3) lower Tail Brier
+    # 4) lower Stress CRPS
+    # 5) lower CRPS
+    summary = summary.sort_values(
+        by=[
+            "Eligible",
+            "Stress Tail Brier",
+            "Tail Brier",
+            "Stress CRPS",
+            "CRPS",
+        ],
+        ascending=[
+            False,
+            True,
+            True,
+            True,
+            True,
+        ],
+    ).reset_index(
+        drop=True
+    )
+
+    summary[
+        "Rank"
+    ] = np.arange(
+        1,
+        len(summary) + 1
+    )
+
+    return summary
+
+
+# ============================================================
+# Select top configs
+# ============================================================
+
+def select_top_configs(
+    summary,
+    top_k,
+):
+    eligible = summary[
+        summary["Eligible"]
+    ].copy()
+
+    if len(eligible) == 0:
+        print(
+            "\nWARNING: no eligible config. "
+            "Falling back to overall ranking."
+        )
+
+        eligible = summary.copy()
+
+    return eligible.head(
+        top_k
+    )
+
+
+# ============================================================
+# Build a Config from row
+# ============================================================
+
+def cfg_from_row(row):
+    return replace(
+        BASE_CFG,
+        lambda_fin=float(
+            row["lambda_fin"]
+        ),
+        hybrid_delta=float(
+            row["hybrid_delta"]
+        ),
+        prior_kl_weight=float(
+            row["prior_kl_weight"]
+        ),
+        min_allocation=float(
+            row["min_allocation"]
+        ),
+    )
+
+
+# ============================================================
+# Print top table
+# ============================================================
+
+def print_top_table(
+    summary,
+    title,
+    n=10,
+):
+    print(
+        "\n"
+        + "=" * 150
+    )
+
+    print(title)
 
     print(
-        summary_display[
-            tail_columns
-        ].to_string()
+        "=" * 150
     )
 
-    # --------------------------------------------------------
-    # Paired deltas vs baseline
-    # --------------------------------------------------------
-
-    delta_df = paired_deltas_vs_crps(
-        metrics_df
-    )
-
-    delta_df.to_csv(
-        "safps_v012_paired_deltas_vs_crps.csv",
-        index=False,
-    )
-
-    print("\n" + "=" * 130)
-    print("PAIRED DELTAS VS CRPS BASELINE")
-    print("Negative Mean Delta = improvement for lower-is-better metrics")
-    print("=" * 130)
+    cols = [
+        "Rank",
+        "Config ID",
+        "lambda_fin",
+        "hybrid_delta",
+        "prior_kl_weight",
+        "min_allocation",
+        "Eligible",
+        "CRPS Delta %",
+        "Tail Brier Delta",
+        "Stress CRPS Delta",
+        "Stress Tail Brier Delta",
+        "Stress Tail Brier",
+        "Risk monotonic violations",
+        "Dir monotonic violations",
+    ]
 
     print(
-        delta_df
+        summary[
+            cols
+        ]
+        .head(n)
         .round(6)
         .to_string(
             index=False
         )
     )
 
-    # --------------------------------------------------------
-    # Allocation by risk bin
-    # --------------------------------------------------------
 
-    allocation_summary = summarize_allocations(
-        allocation_df
+# ============================================================
+# Main tuning pipeline
+# ============================================================
+
+def main():
+    pd.set_option(
+        "display.max_columns",
+        None
     )
 
-    allocation_summary.to_csv(
-        "safps_v012_allocation_by_risk_summary.csv",
+    pd.set_option(
+        "display.width",
+        280
+    )
+
+    print("=" * 150)
+    print("SAFPS v0.1.3 — SENSITIVITY & TUNING")
+    print("=" * 150)
+
+    print(
+        f"Run mode: {RUN_MODE}"
+    )
+
+    print(
+        f"Device: {DEVICE}"
+    )
+
+    print(
+        f"Development seeds: {DEV_SEEDS}"
+    )
+
+    print(
+        "CRPS degradation limit: "
+        f"{BASE_CFG.max_crps_degradation_pct:.3f}%"
+    )
+
+    print("=" * 150)
+
+    cache = build_dev_cache()
+
+    all_rows = []
+
+    # ========================================================
+    # STAGE 1
+    # lambda_fin x hybrid_delta
+    # ========================================================
+
+    stage1_rows = []
+
+    config_counter = 1
+
+    for lam in STAGE1_LAMBDAS:
+        for delta in STAGE1_DELTAS:
+            cfg = replace(
+                BASE_CFG,
+                lambda_fin=lam,
+                hybrid_delta=delta,
+            )
+
+            config_id = (
+                f"S1_{config_counter:02d}"
+            )
+
+            rows = evaluate_configuration(
+                config_id,
+                "Stage1",
+                cfg,
+                cache,
+            )
+
+            stage1_rows.extend(
+                rows
+            )
+
+            all_rows.extend(
+                rows
+            )
+
+            config_counter += 1
+
+    stage1_df = pd.DataFrame(
+        stage1_rows
+    )
+
+    stage1_summary = aggregate_configs(
+        stage1_df,
+        BASE_CFG,
+    )
+
+    print_top_table(
+        stage1_summary,
+        "STAGE 1 RESULTS — lambda_fin x hybrid_delta",
+    )
+
+    stage1_summary.to_csv(
+        "safps_v013_stage1_summary.csv",
         index=False,
     )
 
-    print("\n" + "=" * 130)
-    print("ALLOCATION BY RISK BIN")
-    print("=" * 130)
+    top_stage1 = select_top_configs(
+        stage1_summary,
+        TOP_K_STAGE1,
+    )
 
-    if allocation_summary.empty:
-        print(
-            "No allocation diagnostics."
-        )
-    else:
-        display_cols = [
-            "Method",
-            "Risk Bin",
-            "pi_D_mean",
-            "pi_N_mean",
-            "pi_T_mean",
-        ]
+    # ========================================================
+    # STAGE 2
+    # Tune prior KL
+    # ========================================================
 
-        print(
-            allocation_summary[
-                display_cols
-            ]
-            .round(6)
-            .to_string(
-                index=False
+    stage2_rows = []
+
+    config_counter = 1
+
+    for _, parent in top_stage1.iterrows():
+        for kl in STAGE2_KLS:
+            cfg = replace(
+                BASE_CFG,
+                lambda_fin=float(
+                    parent["lambda_fin"]
+                ),
+                hybrid_delta=float(
+                    parent["hybrid_delta"]
+                ),
+                prior_kl_weight=kl,
+                min_allocation=float(
+                    parent["min_allocation"]
+                ),
             )
-        )
 
-    # --------------------------------------------------------
-    # Saved files
-    # --------------------------------------------------------
+            config_id = (
+                f"S2_{config_counter:02d}"
+            )
 
-    print("\n" + "=" * 130)
-    print("SAVED FILES")
-    print("=" * 130)
+            rows = evaluate_configuration(
+                config_id,
+                "Stage2",
+                cfg,
+                cache,
+            )
+
+            stage2_rows.extend(
+                rows
+            )
+
+            all_rows.extend(
+                rows
+            )
+
+            config_counter += 1
+
+    stage2_df = pd.DataFrame(
+        stage2_rows
+    )
+
+    stage2_summary = aggregate_configs(
+        stage2_df,
+        BASE_CFG,
+    )
+
+    print_top_table(
+        stage2_summary,
+        "STAGE 2 RESULTS — prior_kl_weight",
+    )
+
+    stage2_summary.to_csv(
+        "safps_v013_stage2_summary.csv",
+        index=False,
+    )
+
+    top_stage2 = select_top_configs(
+        stage2_summary,
+        TOP_K_STAGE2,
+    )
+
+    # ========================================================
+    # STAGE 3
+    # Tune min allocation
+    # ========================================================
+
+    stage3_rows = []
+
+    config_counter = 1
+
+    for _, parent in top_stage2.iterrows():
+        for min_alloc in STAGE3_MIN_ALLOC:
+            cfg = replace(
+                BASE_CFG,
+                lambda_fin=float(
+                    parent["lambda_fin"]
+                ),
+                hybrid_delta=float(
+                    parent["hybrid_delta"]
+                ),
+                prior_kl_weight=float(
+                    parent["prior_kl_weight"]
+                ),
+                min_allocation=min_alloc,
+            )
+
+            config_id = (
+                f"S3_{config_counter:02d}"
+            )
+
+            rows = evaluate_configuration(
+                config_id,
+                "Stage3",
+                cfg,
+                cache,
+            )
+
+            stage3_rows.extend(
+                rows
+            )
+
+            all_rows.extend(
+                rows
+            )
+
+            config_counter += 1
+
+    stage3_df = pd.DataFrame(
+        stage3_rows
+    )
+
+    stage3_summary = aggregate_configs(
+        stage3_df,
+        BASE_CFG,
+    )
+
+    print_top_table(
+        stage3_summary,
+        "STAGE 3 RESULTS — min_allocation",
+    )
+
+    stage3_summary.to_csv(
+        "safps_v013_stage3_summary.csv",
+        index=False,
+    )
+
+    # ========================================================
+    # Final development ranking
+    # ========================================================
+
+    all_df = pd.DataFrame(
+        all_rows
+    )
+
+    all_df.to_csv(
+        "safps_v013_all_per_seed_results.csv",
+        index=False,
+    )
+
+    all_summary = aggregate_configs(
+        all_df,
+        BASE_CFG,
+    )
+
+    all_summary.to_csv(
+        "safps_v013_all_config_summary.csv",
+        index=False,
+    )
+
+    print_top_table(
+        all_summary,
+        "FINAL DEVELOPMENT RANKING",
+        n=15,
+    )
+
+    best = select_top_configs(
+        all_summary,
+        1,
+    ).iloc[0]
 
     print(
-        "1) safps_v012_per_seed_metrics.csv"
+        "\n"
+        + "=" * 150
     )
 
     print(
-        "2) safps_v012_per_seed_allocations.csv"
+        "BEST DEVELOPMENT CONFIGURATION"
     )
 
     print(
-        "3) safps_v012_summary_numeric.csv"
+        "=" * 150
     )
 
     print(
-        "4) safps_v012_paired_deltas_vs_crps.csv"
+        f"Config ID          : "
+        f"{best['Config ID']}"
     )
 
     print(
-        "5) safps_v012_allocation_by_risk_summary.csv"
+        f"Stage              : "
+        f"{best['Stage']}"
     )
 
-    print("\nFinished.")
+    print(
+        f"lambda_fin         : "
+        f"{best['lambda_fin']}"
+    )
+
+    print(
+        f"hybrid_delta       : "
+        f"{best['hybrid_delta']}"
+    )
+
+    print(
+        f"prior_kl_weight    : "
+        f"{best['prior_kl_weight']}"
+    )
+
+    print(
+        f"min_allocation     : "
+        f"{best['min_allocation']}"
+    )
+
+    print(
+        f"CRPS Delta %       : "
+        f"{best['CRPS Delta %']:.6f}"
+    )
+
+    print(
+        f"Tail Brier Delta   : "
+        f"{best['Tail Brier Delta']:.6f}"
+    )
+
+    print(
+        f"Stress CRPS Delta  : "
+        f"{best['Stress CRPS Delta']:.6f}"
+    )
+
+    print(
+        f"Stress Tail Delta  : "
+        f"{best['Stress Tail Brier Delta']:.6f}"
+    )
+
+    print(
+        f"Risk violations    : "
+        f"{best['Risk monotonic violations']:.0f}"
+    )
+
+    print(
+        f"Direction violations: "
+        f"{best['Dir monotonic violations']:.0f}"
+    )
+
+    print(
+        "\nIMPORTANT:"
+    )
+
+    print(
+        "This is the best configuration on DEVELOPMENT seeds only."
+    )
+
+    print(
+        "Do not claim final performance yet."
+    )
+
+    print(
+        "Next step: freeze this configuration and evaluate "
+        "once on completely unseen seeds."
+    )
+
+    print(
+        "\nSaved files:"
+    )
+
+    print(
+        "1) safps_v013_stage1_summary.csv"
+    )
+
+    print(
+        "2) safps_v013_stage2_summary.csv"
+    )
+
+    print(
+        "3) safps_v013_stage3_summary.csv"
+    )
+
+    print(
+        "4) safps_v013_all_per_seed_results.csv"
+    )
+
+    print(
+        "5) safps_v013_all_config_summary.csv"
+    )
+
+    print(
+        "\nFinished."
+    )
 
 
 if __name__ == "__main__":
