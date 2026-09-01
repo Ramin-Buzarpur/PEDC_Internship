@@ -1,6 +1,6 @@
 
 """
-SAFPS v1.0 FINAL
+SAFPS v1.2 ACCURACY-PRESERVED
 ================
 State-Adaptive Financial Proper Score
 Research-grade tuning, verification, and final holdout evaluation.
@@ -89,6 +89,8 @@ class Config:
 
     # Tunable financial parameters
     lambda_fin: float = 2.5
+    # Penalize degradation of global probabilistic accuracy
+    crps_preservation_weight: float = 0.20
     hybrid_delta: float = 0.50
     prior_kl_weight: float = 0.0
     min_allocation: float = 0.02
@@ -145,8 +147,8 @@ elif RUN_PROFILE == "balanced":
     HOLDOUT_SEEDS = list(range(1000, 1020))
 
     # Expanded around the boundary optimum found in v0.1.3.
-    LAMBDA_GRID = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
-    DELTA_GRID = [0.35, 0.50, 0.65, 0.80]
+    LAMBDA_GRID = [2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
+    DELTA_GRID = [0.05, 0.10, 0.20, 0.35, 0.50]
     MIN_ALLOC_GRID = [0.01, 0.02, 0.03, 0.05]
     KL_GRID = [0.0, 0.005, 0.01, 0.02]
 
@@ -161,8 +163,8 @@ elif RUN_PROFILE == "paper":
     VERIFY_SEEDS = list(range(201, 216))
     HOLDOUT_SEEDS = list(range(1000, 1030))
 
-    LAMBDA_GRID = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0]
-    DELTA_GRID = [0.25, 0.35, 0.50, 0.65, 0.80, 1.00]
+    LAMBDA_GRID = [2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0]
+    DELTA_GRID = [0.05, 0.10, 0.20, 0.35, 0.50, 0.70]
     MIN_ALLOC_GRID = [0.005, 0.01, 0.02, 0.03, 0.05]
     KL_GRID = [0.0, 0.0025, 0.005, 0.01, 0.02]
 
@@ -828,6 +830,11 @@ def validation_objective(
         cfg.lambda_fin,
     ).mean()
 
+    # Keep the adaptive objective from sacrificing global forecast quality.
+    score = score + cfg.crps_preservation_weight * gaussian_crps(
+        mu, sigma, data["y_val"]
+    ).mean()
+
     if method in (
         "hybrid",
         "monotonic_hybrid",
@@ -975,6 +982,11 @@ def train_method(
                     qn,
                     qt,
                     cfg.lambda_fin,
+                ).mean()
+
+                # Accuracy preservation term.
+                loss = loss + cfg.crps_preservation_weight * gaussian_crps(
+                    mu, sigma, yb
                 ).mean()
 
                 if (
@@ -1670,6 +1682,7 @@ def config_from_row(row):
 def config_signature(cfg):
     return (
         round(cfg.lambda_fin, 8),
+        round(cfg.crps_preservation_weight, 8),
         round(cfg.hybrid_delta, 8),
         round(cfg.prior_kl_weight, 8),
         round(cfg.min_allocation, 8),
@@ -2098,7 +2111,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v1.0 FINAL — RESEARCH PIPELINE"
+        "SAFPS v1.2 ACCURACY-PRESERVED — RESEARCH PIPELINE"
     )
     print(
         "=" * 160
