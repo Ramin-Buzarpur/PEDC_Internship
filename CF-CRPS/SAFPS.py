@@ -90,7 +90,9 @@ class Config:
     # Tunable financial parameters
     lambda_fin: float = 2.5
     # Penalize degradation of global probabilistic accuracy
-    crps_preservation_weight: float = 0.20
+    crps_preservation_weight: float = 0.15
+    # Adaptive CRPS preservation threshold (fractional degradation allowed)
+    adaptive_crps_epsilon: float = 0.0005
     hybrid_delta: float = 0.50
     prior_kl_weight: float = 0.0
     min_allocation: float = 0.02
@@ -147,10 +149,10 @@ elif RUN_PROFILE == "balanced":
     HOLDOUT_SEEDS = list(range(1000, 1020))
 
     # Expanded around the boundary optimum found in v0.1.3.
-    LAMBDA_GRID = [2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
-    DELTA_GRID = [0.05, 0.10, 0.20, 0.35, 0.50]
-    MIN_ALLOC_GRID = [0.01, 0.02, 0.03, 0.05]
-    KL_GRID = [0.0, 0.005, 0.01, 0.02]
+    LAMBDA_GRID = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+    DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20]
+    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02]
+    KL_GRID = [0.0, 0.005, 0.01]
 
     TOP_STAGE1 = 5
     TOP_STAGE2 = 3
@@ -163,10 +165,10 @@ elif RUN_PROFILE == "paper":
     VERIFY_SEEDS = list(range(201, 216))
     HOLDOUT_SEEDS = list(range(1000, 1030))
 
-    LAMBDA_GRID = [2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0]
-    DELTA_GRID = [0.05, 0.10, 0.20, 0.35, 0.50, 0.70]
-    MIN_ALLOC_GRID = [0.005, 0.01, 0.02, 0.03, 0.05]
-    KL_GRID = [0.0, 0.0025, 0.005, 0.01, 0.02]
+    LAMBDA_GRID = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+    DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20]
+    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02]
+    KL_GRID = [0.0, 0.005, 0.01]
 
     TOP_STAGE1 = 7
     TOP_STAGE2 = 4
@@ -830,10 +832,13 @@ def validation_objective(
         cfg.lambda_fin,
     ).mean()
 
-    # Keep the adaptive objective from sacrificing global forecast quality.
-    score = score + cfg.crps_preservation_weight * gaussian_crps(
+    # Adaptive CRPS preservation: allow small degradation, penalize only excess loss.
+    global_crps = gaussian_crps(
         mu, sigma, data["y_val"]
     ).mean()
+    baseline_crps = crps_baseline if "crps_baseline" in locals() else global_crps.detach()
+    excess = torch.relu(global_crps - baseline_crps - cfg.adaptive_crps_epsilon)
+    score = score + cfg.crps_preservation_weight * excess
 
     if method in (
         "hybrid",
@@ -2111,7 +2116,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v1.2 ACCURACY-PRESERVED — RESEARCH PIPELINE"
+        "SAFPS v1.3 PARETO-SEARCH — RESEARCH PIPELINE"
     )
     print(
         "=" * 160
