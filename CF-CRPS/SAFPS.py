@@ -3,7 +3,7 @@
 SAFPS v1.2 ACCURACY-PRESERVED
 ================
 State-Adaptive Financial Proper Score
-Research-grade tuning, verification, and final holdout evaluation.
+Research-grade ablation study, frozen hyperparameter evaluation, and final holdout comparison.
 
 Core idea
 ---------
@@ -62,7 +62,7 @@ import torch.nn.functional as F
 
 RUN_PROFILE = "balanced"
 
-OUTPUT_DIR = Path("safps_v1_final_results")
+OUTPUT_DIR = Path("safps_v1_4_ablation_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -88,14 +88,14 @@ class Config:
     n_grid: int = 129
 
     # Tunable financial parameters
-    lambda_fin: float = 2.5
+    lambda_fin: float = 3.0
     # Penalize degradation of global probabilistic accuracy
     crps_preservation_weight: float = 0.15
     # Adaptive CRPS preservation threshold (fractional degradation allowed)
     adaptive_crps_epsilon: float = 0.0005
-    hybrid_delta: float = 0.50
+    hybrid_delta: float = 0.05
     prior_kl_weight: float = 0.0
-    min_allocation: float = 0.02
+    min_allocation: float = 0.0
 
     # Weighting regions
     direction_width: float = 0.45
@@ -117,6 +117,20 @@ class Config:
     bootstrap_seed: int = 2026
 
 
+
+# =============================================================================
+# v1.4 ABLATION MODE
+# =============================================================================
+# Fixed winner configuration from previous experiments.
+# The purpose of this version is not tuning; it is isolating contribution
+# from each SAFPS component under identical experimental conditions.
+#
+# Compared methods:
+#   M0: CRPS baseline
+#   M1: Static / risk allocation baselines
+#   M2: Hybrid controller
+#   M3: Full monotonic SAFPS
+#
 BASE_CFG = Config()
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -149,10 +163,10 @@ elif RUN_PROFILE == "balanced":
     HOLDOUT_SEEDS = list(range(1000, 1020))
 
     # Expanded around the boundary optimum found in v0.1.3.
-    LAMBDA_GRID = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
-    DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20]
-    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02]
-    KL_GRID = [0.0, 0.005, 0.01]
+    LAMBDA_GRID = [3.0]
+    DELTA_GRID = [0.05]
+    MIN_ALLOC_GRID = [0.0]
+    KL_GRID = [0.0]
 
     TOP_STAGE1 = 5
     TOP_STAGE2 = 3
@@ -165,10 +179,10 @@ elif RUN_PROFILE == "paper":
     VERIFY_SEEDS = list(range(201, 216))
     HOLDOUT_SEEDS = list(range(1000, 1030))
 
-    LAMBDA_GRID = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
-    DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20]
-    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02]
-    KL_GRID = [0.0, 0.005, 0.01]
+    LAMBDA_GRID = [3.0]
+    DELTA_GRID = [0.05]
+    MIN_ALLOC_GRID = [0.0]
+    KL_GRID = [0.0]
 
     TOP_STAGE1 = 7
     TOP_STAGE2 = 4
@@ -2116,7 +2130,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v1.3 PARETO-SEARCH — RESEARCH PIPELINE"
+        "SAFPS v1.4 ABLATION STUDY — RESEARCH PIPELINE"
     )
     print(
         "=" * 160
