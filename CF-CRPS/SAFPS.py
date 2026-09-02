@@ -64,7 +64,7 @@ import torch.nn.functional as F
 RUN_PROFILE = "balanced"
 RUN_ALLOCATION_DIAGNOSTICS = True
 
-OUTPUT_DIR = Path("safps_v3_0_research_upgrade_results")
+OUTPUT_DIR = Path("safps_v3_1_boundary_expansion_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -125,8 +125,26 @@ class Config:
 
 
 
+
 # =============================================================================
-# v3.0 RESEARCH UPGRADE
+# v3.1 BOUNDARY EXPANSION — MECHANISM VALIDATION
+# =============================================================================
+# Goal:
+# Validate whether the current SAFPS optimum is a real optimum or an artifact
+# of a narrow search space.
+#
+# Changes:
+# - Expanded lambda search.
+# - Expanded hybrid delta search.
+# - Expanded minimum allocation search.
+# - Added focus on allocation behavior analysis.
+#
+# Research questions:
+# 1) Does higher risk consistently increase tail allocation?
+# 2) Is monotonic behavior preserved across the wider space?
+# 3) Is the current lambda=3, delta=0.05 solution stable?
+#
+
 # =============================================================================
 # Objective:
 # Move SAFPS from adaptive weighting toward a risk-aware forecasting framework.
@@ -273,9 +291,9 @@ elif RUN_PROFILE == "balanced":
     HOLDOUT_SEEDS = list(range(1000, 1030))
 
     # Expanded around the boundary optimum found in v0.1.3.
-    LAMBDA_GRID = [3.0]
-    DELTA_GRID = [0.05]
-    MIN_ALLOC_GRID = [0.0]
+    LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
+    DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
+    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 5
@@ -289,9 +307,9 @@ elif RUN_PROFILE == "paper":
     VERIFY_SEEDS = list(range(201, 216))
     HOLDOUT_SEEDS = list(range(1000, 1030))
 
-    LAMBDA_GRID = [3.0]
-    DELTA_GRID = [0.05]
-    MIN_ALLOC_GRID = [0.0]
+    LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
+    DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
+    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 7
@@ -2240,7 +2258,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v3.0 RESEARCH UPGRADE — RISK AWARE FRAMEWORK"
+        "SAFPS v3.1 BOUNDARY EXPANSION — MECHANISM VALIDATION"
     )
     print(
         "=" * 160
