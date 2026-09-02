@@ -62,7 +62,7 @@ import torch.nn.functional as F
 
 RUN_PROFILE = "balanced"
 
-OUTPUT_DIR = Path("safps_v1_8_publication_validation_results")
+OUTPUT_DIR = Path("safps_v2_0_paper_final_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -113,7 +113,7 @@ class Config:
     max_crps_degradation_pct: float = 0.05
 
     # Bootstrap
-    bootstrap_reps: int = 5000
+    bootstrap_reps: int = 10000
     bootstrap_seed: int = 2026
 
 
@@ -121,8 +121,29 @@ class Config:
 
 
 
+
 # =============================================================================
-# v1.8 PUBLICATION VALIDATION
+# v2.0 PAPER FINAL PROTOCOL
+# =============================================================================
+# Final synthetic validation before real-world experiments.
+#
+# Protocol:
+# - 10 independent tune seeds
+# - 20 independent verification seeds
+# - 30 unseen final holdout seeds
+# - No hard CRPS eligibility gate
+# - Pareto robustness selection
+#
+# Reporting focus:
+#   * CRPS preservation
+#   * Tail calibration
+#   * Stress tail calibration
+#   * Bootstrap confidence intervals
+#   * Cross-seed stability
+#
+# This version is frozen for publication-style evaluation.
+#
+
 # =============================================================================
 # Final synthetic validation before real-world experiments.
 #
@@ -221,9 +242,9 @@ if RUN_PROFILE == "smoke":
 
 elif RUN_PROFILE == "balanced":
     BASE_CFG.epochs = 50
-    TUNE_SEEDS = [101, 102, 103, 104, 105]
-    VERIFY_SEEDS = [201, 202, 203, 204, 205, 206, 207, 208]
-    HOLDOUT_SEEDS = list(range(1000, 1020))
+    TUNE_SEEDS = list(range(101, 111))
+    VERIFY_SEEDS = list(range(201, 221))
+    HOLDOUT_SEEDS = list(range(1000, 1030))
 
     # Expanded around the boundary optimum found in v0.1.3.
     LAMBDA_GRID = [3.0]
@@ -2193,7 +2214,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v1.8 PUBLICATION VALIDATION — RESEARCH PIPELINE"
+        "SAFPS v2.0 PAPER FINAL PROTOCOL — RESEARCH PIPELINE"
     )
     print(
         "=" * 160
