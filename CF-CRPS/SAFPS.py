@@ -64,7 +64,7 @@ import torch.nn.functional as F
 RUN_PROFILE = "balanced"
 RUN_ALLOCATION_DIAGNOSTICS = True
 
-OUTPUT_DIR = Path("safps_v3_1_boundary_expansion_results")
+OUTPUT_DIR = Path("safps_v3_2_mechanism_isolation_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -126,8 +126,35 @@ class Config:
 
 
 
+
 # =============================================================================
-# v3.1 BOUNDARY EXPANSION — MECHANISM VALIDATION
+# v3.2 MECHANISM ISOLATION — CONTRIBUTION VALIDATION
+# =============================================================================
+# Goal:
+# Separate the contribution of each SAFPS component.
+#
+# Research questions:
+#
+# 1) Is adaptive allocation itself useful?
+#    Compare:
+#       CRPS baseline
+#       Static allocation
+#       Financial prior
+#       Hybrid controller
+#       Monotonic Hybrid controller
+#
+# 2) Does monotonicity provide additional value?
+#    Check whether:
+#       Risk increase -> tail allocation increase
+#       Direction uncertainty increase -> direction allocation increase
+#
+# 3) Is minimum allocation necessary?
+#    Expanded search:
+#       0.0, 0.005, 0.01, 0.02, 0.05, 0.10
+#
+# No architectural expansion in this version.
+# The goal is attribution, not performance chasing.
+#
 # =============================================================================
 # Goal:
 # Validate whether the current SAFPS optimum is a real optimum or an artifact
@@ -293,7 +320,7 @@ elif RUN_PROFILE == "balanced":
     # Expanded around the boundary optimum found in v0.1.3.
     LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
     DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
-    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05]
+    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05, 0.10]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 5
@@ -309,7 +336,7 @@ elif RUN_PROFILE == "paper":
 
     LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
     DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
-    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05]
+    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05, 0.10]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 7
@@ -978,7 +1005,7 @@ def validation_objective(
     global_crps = gaussian_crps(
         mu, sigma, data["y_val"]
     ).mean()
-    baseline_crps = crps_baseline if "crps_baseline" in locals() else global_crps.detach()
+    baseline_crps = locals().get("crps_baseline", global_crps.detach())
     excess = torch.relu(global_crps - baseline_crps - cfg.adaptive_crps_epsilon)
     score = score + cfg.crps_preservation_weight * excess
 
@@ -2258,7 +2285,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v3.1 BOUNDARY EXPANSION — MECHANISM VALIDATION"
+        "SAFPS v3.2 MECHANISM ISOLATION — CONTRIBUTION VALIDATION"
     )
     print(
         "=" * 160
