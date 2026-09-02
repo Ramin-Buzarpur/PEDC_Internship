@@ -35,7 +35,8 @@ python SAFPS_v1_final.py
 Profiles
 --------
 RUN_PROFILE = "smoke"     -> code sanity / fast trial
-RUN_PROFILE = "balanced"  -> recommended development run
+RUN_PROFILE = "balanced"
+RUN_ALLOCATION_DIAGNOSTICS = True  -> recommended development run
 RUN_PROFILE = "paper"     -> larger final research run
 
 For a paper-quality final run, set:
@@ -61,8 +62,9 @@ import torch.nn.functional as F
 # =============================================================================
 
 RUN_PROFILE = "balanced"
+RUN_ALLOCATION_DIAGNOSTICS = True
 
-OUTPUT_DIR = Path("safps_v2_0_paper_final_results")
+OUTPUT_DIR = Path("safps_v3_0_research_upgrade_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -122,8 +124,32 @@ class Config:
 
 
 
+
 # =============================================================================
-# v2.0 PAPER FINAL PROTOCOL
+# v3.0 RESEARCH UPGRADE
+# =============================================================================
+# Objective:
+# Move SAFPS from adaptive weighting toward a risk-aware forecasting framework.
+#
+# Research directions introduced:
+# 1) Explicit separation of:
+#       - accuracy objective
+#       - tail-risk objective
+#       - calibration objective
+#
+# 2) Additional diagnostics:
+#       - allocation behavior by risk buckets
+#       - tail allocation monotonicity
+#       - stress regime response
+#
+# 3) Preparation for real-market validation.
+#
+# Important:
+# This version keeps the previous SAFPS core frozen first.
+# The goal is to measure whether the mechanism itself is meaningful
+# before adding external market regime encoders.
+#
+
 # =============================================================================
 # Final synthetic validation before real-world experiments.
 #
@@ -2214,7 +2240,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v2.0 PAPER FINAL PROTOCOL — RESEARCH PIPELINE"
+        "SAFPS v3.0 RESEARCH UPGRADE — RISK AWARE FRAMEWORK"
     )
     print(
         "=" * 160
