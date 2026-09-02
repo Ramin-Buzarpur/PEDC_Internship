@@ -64,7 +64,7 @@ import torch.nn.functional as F
 RUN_PROFILE = "balanced"
 RUN_ALLOCATION_DIAGNOSTICS = True
 
-OUTPUT_DIR = Path("safps_v3_2_mechanism_isolation_results")
+OUTPUT_DIR = Path("safps_v3_3_stress_mechanism_validation_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -127,6 +127,19 @@ class Config:
 
 
 
+# =============================================================================
+# v3.3 STRESS MECHANISM VALIDATION — FINAL SYNTHETIC CHECK
+# =============================================================================
+# Goal:
+# Validate that SAFPS gains come from the mechanism itself.
+#
+# Tests:
+# 1) Hybrid vs Monotonic Hybrid ablation
+# 2) Stronger stress/tail regime evaluation
+# 3) Minimum allocation sensitivity
+#
+# This version focuses on mechanism validation, not hyperparameter chasing.
+#
 # =============================================================================
 # v3.2 MECHANISM ISOLATION — CONTRIBUTION VALIDATION
 # =============================================================================
@@ -320,7 +333,7 @@ elif RUN_PROFILE == "balanced":
     # Expanded around the boundary optimum found in v0.1.3.
     LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
     DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
-    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05, 0.10]
+    MIN_ALLOC_GRID = [0.0, 0.001, 0.005, 0.01, 0.02]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 5
@@ -336,7 +349,7 @@ elif RUN_PROFILE == "paper":
 
     LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
     DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
-    MIN_ALLOC_GRID = [0.0, 0.005, 0.01, 0.02, 0.05, 0.10]
+    MIN_ALLOC_GRID = [0.0, 0.001, 0.005, 0.01, 0.02]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 7
@@ -2285,7 +2298,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v3.2 MECHANISM ISOLATION — CONTRIBUTION VALIDATION"
+        "SAFPS v3.3 STRESS MECHANISM VALIDATION — FINAL SYNTHETIC CHECK"
     )
     print(
         "=" * 160
