@@ -62,7 +62,7 @@ import torch.nn.functional as F
 
 RUN_PROFILE = "balanced"
 
-OUTPUT_DIR = Path("safps_v1_5_robustness_results")
+OUTPUT_DIR = Path("safps_v1_6_stability_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -118,8 +118,23 @@ class Config:
 
 
 
+
 # =============================================================================
-# v1.5 ROBUSTNESS-FIRST SELECTION
+# v1.6 STABILITY VALIDATION
+# =============================================================================
+# Objective:
+# Validate SAFPS robustness before moving to real market data.
+#
+# Changes:
+# - Expanded verification from 8 to 20 independent seeds.
+# - Removed hard CRPS-only eligibility preference.
+# - Rank configurations using a multi-objective stability view:
+#   40% stress tail calibration
+#   30% tail calibration
+#   20% cross-seed stability
+#   10% CRPS preservation
+#
+
 # =============================================================================
 # Goal:
 # Select configurations with a controlled CRPS cost while prioritizing:
@@ -2141,7 +2156,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v1.5 ROBUSTNESS-FIRST SELECTION — RESEARCH PIPELINE"
+        "SAFPS v1.6 STABILITY VALIDATION — RESEARCH PIPELINE"
     )
     print(
         "=" * 160
