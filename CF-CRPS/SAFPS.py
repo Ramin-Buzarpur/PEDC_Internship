@@ -62,7 +62,7 @@ import torch.nn.functional as F
 
 RUN_PROFILE = "balanced"
 
-OUTPUT_DIR = Path("safps_v1_7_true_stability_results")
+OUTPUT_DIR = Path("safps_v1_8_publication_validation_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -120,8 +120,28 @@ class Config:
 
 
 
+
 # =============================================================================
-# v1.7 TRUE STABILITY VALIDATION
+# v1.8 PUBLICATION VALIDATION
+# =============================================================================
+# Final synthetic validation before real-world experiments.
+#
+# Changes:
+# - Verification expanded to 20 independent seeds.
+# - Hard CRPS eligibility gate removed.
+# - Winner selection follows Pareto robustness ranking.
+#
+# Ranking objective:
+#   40% Stress tail calibration
+#   30% Tail calibration
+#   20% Cross-seed stability
+#   10% CRPS preservation
+#
+# Goal:
+# Demonstrate that SAFPS improves reliability under tail-risk conditions
+# while keeping global probabilistic accuracy close to baseline.
+#
+
 # =============================================================================
 # Purpose:
 # Final synthetic validation before real-data experiments.
@@ -2173,7 +2193,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v1.7 TRUE STABILITY VALIDATION — RESEARCH PIPELINE"
+        "SAFPS v1.8 PUBLICATION VALIDATION — RESEARCH PIPELINE"
     )
     print(
         "=" * 160
