@@ -1,4 +1,3 @@
-
 """
 SAFPS v1.2 ACCURACY-PRESERVED
 ================
@@ -37,7 +36,8 @@ Profiles
 RUN_PROFILE = "smoke"     -> code sanity / fast trial
 RUN_PROFILE = "balanced"
 RUN_ALLOCATION_DIAGNOSTICS = True
-RUN_BOUNDARY_AUDIT = True  -> recommended development run
+RUN_BOUNDARY_AUDIT = True
+RUN_CALIBRATION_LAYER_ANALYSIS = True  -> recommended development run
 RUN_PROFILE = "paper"     -> larger final research run
 
 For a paper-quality final run, set:
@@ -65,8 +65,9 @@ import torch.nn.functional as F
 RUN_PROFILE = "balanced"
 RUN_ALLOCATION_DIAGNOSTICS = True
 RUN_BOUNDARY_AUDIT = True
+RUN_CALIBRATION_LAYER_ANALYSIS = True
 
-OUTPUT_DIR = Path("safps_v3_4_boundary_stability_audit_results")
+OUTPUT_DIR = Path("safps_v4_risk_calibration_layer_upgrade_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -766,6 +767,48 @@ class MonotonicHybridController(nn.Module):
         )
 
 
+
+# =============================================================================
+# RISK CALIBRATION LAYER (v4)
+# =============================================================================
+class RiskCalibrationHybridController(nn.Module):
+    """
+    SAFPS v4 experimental layer.
+
+    Keeps the validated monotonic SAFPS allocation and adds a small learned
+    calibration correction. The correction is bounded so the original risk
+    semantics are preserved approximately.
+
+    Goal:
+        Improve tail calibration without replacing the SAFPS core.
+    """
+
+    def __init__(self, delta, min_allocation):
+        super().__init__()
+        self.base = MonotonicHybridController(delta, min_allocation)
+        self.calibrator = nn.Sequential(
+            nn.Linear(2, 8),
+            nn.Tanh(),
+            nn.Linear(8, 3),
+        )
+        self.scale = 0.05
+        self.min_allocation = min_allocation
+
+    def forward(self, x):
+        base_pi = self.base(x)
+
+        correction = self.scale * torch.tanh(
+            self.calibrator(x[:, 1:3])
+        )
+
+        logits = torch.log(base_pi + 1e-8) + correction
+
+        return bounded_simplex(
+            logits,
+            self.min_allocation,
+        )
+
+
 # =============================================================================
 # ALLOCATIONS
 # =============================================================================
@@ -801,6 +844,12 @@ def build_controller(method, cfg):
             cfg.min_allocation,
         ).to(DEVICE)
 
+    if method == "calibrated_monotonic_hybrid":
+        return RiskCalibrationHybridController(
+            cfg.hybrid_delta,
+            cfg.min_allocation,
+        ).to(DEVICE)
+
     return None
 
 
@@ -818,6 +867,7 @@ def get_allocation(method, controller, x, cfg):
         "neural",
         "hybrid",
         "monotonic_hybrid",
+        "calibrated_monotonic_hybrid",
     ):
         return controller(x)
 
@@ -1083,6 +1133,7 @@ def train_method(
             "neural": 3,
             "hybrid": 4,
             "monotonic_hybrid": 5,
+            "calibrated_monotonic_hybrid": 6,
         }[method]
     )
 
@@ -2107,6 +2158,7 @@ def run_final_holdout(
             "neural",
             "hybrid",
             "monotonic_hybrid",
+            "calibrated_monotonic_hybrid",
         ]
     else:
         methods = [
