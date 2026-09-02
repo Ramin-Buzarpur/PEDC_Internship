@@ -36,7 +36,8 @@ Profiles
 --------
 RUN_PROFILE = "smoke"     -> code sanity / fast trial
 RUN_PROFILE = "balanced"
-RUN_ALLOCATION_DIAGNOSTICS = True  -> recommended development run
+RUN_ALLOCATION_DIAGNOSTICS = True
+RUN_BOUNDARY_AUDIT = True  -> recommended development run
 RUN_PROFILE = "paper"     -> larger final research run
 
 For a paper-quality final run, set:
@@ -63,8 +64,9 @@ import torch.nn.functional as F
 
 RUN_PROFILE = "balanced"
 RUN_ALLOCATION_DIAGNOSTICS = True
+RUN_BOUNDARY_AUDIT = True
 
-OUTPUT_DIR = Path("safps_v3_3_stress_mechanism_validation_results")
+OUTPUT_DIR = Path("safps_v3_4_boundary_stability_audit_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -127,8 +129,23 @@ class Config:
 
 
 
+
 # =============================================================================
-# v3.3 STRESS MECHANISM VALIDATION — FINAL SYNTHETIC CHECK
+# v3.4 BOUNDARY & STABILITY AUDIT
+# =============================================================================
+# Goal:
+# Validate that SAFPS improvements are not caused by arbitrary boundary choices.
+#
+# Audits:
+# - CRPS preservation sensitivity
+# - minimum allocation sensitivity
+# - stability of frozen mechanism
+#
+# Frozen mechanism:
+# lambda_fin = 3.0
+# hybrid_delta = 0.1
+# prior_kl_weight = 0.0
+#
 # =============================================================================
 # Goal:
 # Validate that SAFPS gains come from the mechanism itself.
@@ -141,7 +158,7 @@ class Config:
 # This version focuses on mechanism validation, not hyperparameter chasing.
 #
 # =============================================================================
-# v3.2 MECHANISM ISOLATION — CONTRIBUTION VALIDATION
+# v3.2 MECHANISM ISOLATION - CONTRIBUTION VALIDATION
 # =============================================================================
 # Goal:
 # Separate the contribution of each SAFPS component.
@@ -333,7 +350,7 @@ elif RUN_PROFILE == "balanced":
     # Expanded around the boundary optimum found in v0.1.3.
     LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
     DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
-    MIN_ALLOC_GRID = [0.0, 0.001, 0.005, 0.01, 0.02]
+    MIN_ALLOC_GRID = [0.0, 0.001, 0.005, 0.01, 0.05]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 5
@@ -349,7 +366,7 @@ elif RUN_PROFILE == "paper":
 
     LAMBDA_GRID = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0]
     DELTA_GRID = [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40]
-    MIN_ALLOC_GRID = [0.0, 0.001, 0.005, 0.01, 0.02]
+    MIN_ALLOC_GRID = [0.0, 0.001, 0.005, 0.01, 0.05]
     KL_GRID = [0.0]
 
     TOP_STAGE1 = 7
@@ -2105,7 +2122,7 @@ def run_final_holdout(
         + "=" * 160
     )
     print(
-        "FINAL HOLDOUT — FROZEN HYPERPARAMETERS"
+        "FINAL HOLDOUT - FROZEN HYPERPARAMETERS"
     )
     print(
         "=" * 160
@@ -2298,7 +2315,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v3.3 STRESS MECHANISM VALIDATION — FINAL SYNTHETIC CHECK"
+        "SAFPS v3.4 BOUNDARY & STABILITY AUDIT - FINAL SYNTHETIC CHECK"
     )
     print(
         "=" * 160
@@ -2376,7 +2393,7 @@ def main():
 
     print_ranking(
         stage1_summary,
-        "STAGE 1 — LAMBDA × DELTA",
+        "STAGE 1 - LAMBDA × DELTA",
     )
 
     top_stage1 = select_top(
@@ -2434,7 +2451,7 @@ def main():
 
     print_ranking(
         stage2_summary,
-        "STAGE 2 — MIN ALLOCATION",
+        "STAGE 2 - MIN ALLOCATION",
     )
 
     top_stage2 = select_top(
@@ -2495,7 +2512,7 @@ def main():
 
     print_ranking(
         stage3_summary,
-        "STAGE 3 — PRIOR KL",
+        "STAGE 3 - PRIOR KL",
     )
 
     # -------------------------------------------------------------------------
@@ -2802,7 +2819,7 @@ def main():
         + "=" * 160
     )
     print(
-        "FINAL HOLDOUT RESULTS — MEAN ± STD"
+        "FINAL HOLDOUT RESULTS - MEAN ± STD"
     )
     print(
         "=" * 160
@@ -2862,7 +2879,7 @@ def main():
         + "=" * 160
     )
     print(
-        "MONOTONIC HYBRID — FINAL HOLDOUT VERDICT"
+        "MONOTONIC HYBRID - FINAL HOLDOUT VERDICT"
     )
     print(
         "=" * 160
