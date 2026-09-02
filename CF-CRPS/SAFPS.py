@@ -62,7 +62,7 @@ import torch.nn.functional as F
 
 RUN_PROFILE = "balanced"
 
-OUTPUT_DIR = Path("safps_v1_4_ablation_results")
+OUTPUT_DIR = Path("safps_v1_5_robustness_results")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -119,7 +119,18 @@ class Config:
 
 
 # =============================================================================
-# v1.4 ABLATION MODE
+# v1.5 ROBUSTNESS-FIRST SELECTION
+# =============================================================================
+# Goal:
+# Select configurations with a controlled CRPS cost while prioritizing:
+# - stress tail calibration
+# - tail reliability
+# - stability across seeds
+#
+# This version is intended as the bridge between synthetic validation
+# and real-data experiments.
+#
+
 # =============================================================================
 # Fixed winner configuration from previous experiments.
 # The purpose of this version is not tuning; it is isolating contribution
@@ -2130,7 +2141,7 @@ def main():
         "=" * 160
     )
     print(
-        "SAFPS v1.4 ABLATION STUDY — RESEARCH PIPELINE"
+        "SAFPS v1.5 ROBUSTNESS-FIRST SELECTION — RESEARCH PIPELINE"
     )
     print(
         "=" * 160
