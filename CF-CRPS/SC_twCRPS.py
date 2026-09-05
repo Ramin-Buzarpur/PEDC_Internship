@@ -1,103 +1,150 @@
-"""
-SC-twCRPS v0.1 Prototype
-State-Conditional Threshold-Weighted CRPS
 
-First experimental loss implementation.
+"""
+SC-twCRPS v0.2
+Smooth Tail State-Conditional Threshold Weighted CRPS
+
+Design goals:
+- Properness preserved by using exogenous past volatility state.
+- Tail weighting only activates in extreme standardized regions.
+- Per-sample thresholds using forecast distribution scale.
+- Stable bounded weights.
 """
 
 import torch
 
 
 def gaussian_cdf(x, mu, sigma):
+    sigma = torch.clamp(sigma, min=1e-6)
     z = (x - mu) / sigma
-    return 0.5 * (1.0 + torch.erf(z / torch.sqrt(torch.tensor(2.0, device=x.device))))
+    return 0.5 * (
+        1.0 + torch.erf(z / torch.sqrt(torch.tensor(2.0, device=x.device)))
+    )
 
 
 def gaussian_crps(mu, sigma, y):
     sigma = torch.clamp(sigma, min=1e-6)
+
     z = (y - mu) / sigma
 
     pdf = torch.exp(-0.5 * z ** 2) / torch.sqrt(
         torch.tensor(2.0 * torch.pi, device=y.device)
     )
+
     cdf = gaussian_cdf(y, mu, sigma)
 
     crps = sigma * (
-        z * (2 * cdf - 1)
-        + 2 * pdf
-        - 1 / torch.sqrt(torch.tensor(torch.pi, device=y.device))
+        z * (2.0 * cdf - 1.0)
+        + 2.0 * pdf
+        - 1.0 / torch.sqrt(torch.tensor(torch.pi, device=y.device))
     )
 
     return crps.mean()
 
 
-def threshold_weight(thresholds, realized_vol, lam=1.0):
+def smooth_tail_weight(
+    z_abs,
+    realized_vol,
+    lam=1.0,
+    cutoff=1.5,
+    sharpness=5.0,
+):
     """
-    Weight depends only on historical/exogenous state.
+    Smooth tail activation.
+
+    z_abs:
+        standardized threshold distance |(u-mu)/sigma|
+
+    realized_vol:
+        exogenous state from past information only
     """
-    return torch.exp(
-        lam * realized_vol.unsqueeze(-1) * torch.abs(thresholds)
+
+    vol = torch.clamp(realized_vol.detach(), 0.0, 3.0)
+
+    gate = torch.sigmoid(
+        sharpness * (z_abs - cutoff)
     )
 
+    boost = torch.exp(
+        torch.clamp(lam * vol.unsqueeze(-1), max=5.0)
+    ) - 1.0
 
-def sc_twcrps(mu, sigma, y, realized_vol, thresholds, lam=1.0):
-    """
-    Approximation of:
-
-    integral w_t(u)(F(u)-I(y<=u))^2 du
-    """
-
-    t = thresholds.unsqueeze(0)
-
-    F = gaussian_cdf(
-        t,
-        mu.unsqueeze(-1),
-        sigma.unsqueeze(-1)
-    )
-
-    indicator = (y.unsqueeze(-1) <= t).float()
-
-    error = (F - indicator) ** 2
-
-    weights = threshold_weight(
-        thresholds,
-        realized_vol,
-        lam
-    )
-
-    return torch.trapz(
-        error * weights,
-        thresholds,
-        dim=-1
-    ).mean()
+    return 1.0 + boost * gate
 
 
-def SC_twCRPS_loss(
+def sc_twcrps_v02(
     mu,
     sigma,
     y,
     realized_vol,
-    thresholds,
+    z_grid,
     lam=1.0,
     alpha=1.0,
 ):
     """
-    Final loss:
+    Single-integral SC-twCRPS.
 
-    CRPS + alpha * SC-twCRPS
+    Thresholds are generated per sample:
+
+        u = mu + sigma*z
+
     """
 
-    return (
-        gaussian_crps(mu, sigma, y)
+    sigma = torch.clamp(sigma, min=1e-6)
+
+    z = z_grid.unsqueeze(0)
+
+    thresholds = (
+        mu.unsqueeze(-1)
         +
-        alpha * sc_twcrps(
-            mu,
-            sigma,
-            y,
-            realized_vol,
-            thresholds,
-            lam
-        )
+        sigma.unsqueeze(-1) * z
+    )
+
+    F = gaussian_cdf(
+        thresholds,
+        mu.unsqueeze(-1),
+        sigma.unsqueeze(-1)
+    )
+
+    indicator = (
+        y.unsqueeze(-1) <= thresholds
+    ).float()
+
+    error = (F - indicator) ** 2
+
+    weights = smooth_tail_weight(
+        torch.abs(z),
+        realized_vol,
+        lam=lam,
+    )
+
+    weighted_error = (
+        1.0 + alpha * (weights - 1.0)
+    ) * error
+
+    return torch.trapz(
+        weighted_error,
+        z_grid,
+        dim=-1
+    ).mean()
+
+
+def SC_twCRPS_v02_loss(
+    mu,
+    sigma,
+    y,
+    realized_vol,
+    z_grid,
+    lam=1.0,
+    alpha=1.0,
+):
+    return sc_twcrps_v02(
+        mu,
+        sigma,
+        y,
+        realized_vol,
+        z_grid,
+        lam,
+        alpha,
     )
 
 
@@ -106,22 +153,36 @@ if __name__ == "__main__":
     n = 64
 
     mu = torch.randn(n)
-    sigma = torch.ones(n) * 0.5
+    sigma = torch.rand(n) + 0.2
     y = torch.randn(n)
 
-    # Must be calculated from past observations only.
+    # Example only:
+    # must be calculated from past observations
     realized_vol = torch.rand(n)
 
-    thresholds = torch.linspace(-3, 3, 200)
+    z_grid = torch.linspace(-5, 5, 200)
 
-    loss = SC_twCRPS_loss(
+    loss = SC_twCRPS_v02_loss(
         mu,
         sigma,
         y,
         realized_vol,
-        thresholds,
+        z_grid,
         lam=1.0,
-        alpha=0.5
+        alpha=0.5,
     )
 
-    print("SC-twCRPS v0.1:", loss.item())
+    print("SC-twCRPS v0.2:", loss.item())
+
+    # sanity check:
+    zero_state_loss = SC_twCRPS_v02_loss(
+        mu,
+        sigma,
+        y,
+        torch.zeros_like(realized_vol),
+        z_grid,
+        lam=1.0,
+        alpha=0.5,
+    )
+
+    print("Zero volatility state:", zero_state_loss.item())
