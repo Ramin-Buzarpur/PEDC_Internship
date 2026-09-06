@@ -1,0 +1,489 @@
+نسخه اصلاحی آماده شد.
+
+مشکل v4 دقیقاً همان mismatch ابعاد بود:
+
+قبلی:
+
+nn.Linear(3, 8)
+
+ولی ورودی:
+
+x[:, 1:3]
+
+فقط دو ویژگی داشت:
+
+risk_state
+direction_uncertainty
+
+پس اصلاح شد به:
+
+nn.Linear(2, 8)
+
+هیچ تغییر دیگری انجام ندادم:
+
+منطق Monotonic SAFPS حفظ شده
+پارامترهای قبلی حفظ شده‌اند
+Calibration Layer حذف یا ساده نشده؛ فقط ورودی آن درست شده
+برای تست منصفانه همان ساختار v4 باقی مانده است
+
+فایل آماده تست:
+
+دانلود SAFPS_v4_1_risk_calibration_layer_fixed.py
+
+بعد از اجرا، مخصوصاً این بخش‌ها را بفرست:
+
+FINAL HOLDOUT RESULTS - FROZEN HYPERPARAMETERS
+FINAL PAIRED DELTAS VS CRPS
+مقایسه:
+monotonic_hybrid
+vs
+calibrated_monotonic_hybrid
+
+تمرکز اصلی ما این است که ببینیم آیا لایه calibration واقعاً چیزی اضافه می‌کند یا فقط همان رفتار قبلی را تکرار می‌کند.
+
+SAFPS_v4_1_risk_calibration_layer_fixed.py
+Code
+08_frozen_winner_config(5).json
+File
+message.txt
+Document
+01 Stage1 Lambda Delta(5)
+02 Stage2 Min Allocation(5)
+03 Stage3 Kl(5)
+04 All Tune Per Seed(5)
+05 All Tune Summary(5)
+06 Verify Per Seed(5)
+07 Verify Summary(5)
+09 Final Holdout Per Seed(5)
+10 Final Holdout Allocations(5)
+11 Final Holdout Summary Mean Std(5)
+12 Final Paired Bootstrap Report(5)
+13 Final Allocation By Risk(5)
+SAFPS(6).py
+Python
+Today 10:44 AM
+Pasted markdown(1).md
+File
+sanity_check.py
+Python
+SC_twCRPS.py
+Python
+Pasted text (2).txt
+Document
+
+نتیجه v0.4 را دقیق و صادقانه می‌خوانم:
+
+CRPS ساده هنوز بهترین CRPS کلی را می‌دهد (۰.۵۴۸).
+SC-twCRPS کمی بدتر شده (۰.۵۷۲) ولی فاصله‌اش خیلی بزرگ نیست.
+Student-t NLL در این بنچمارک ضعیف ظاهر شده چون فقط با CRPS گوسی ارزیابی شده (که منصفانه نیست).
+
+این نتیجه شکست نیست. دقیقاً همان الگویی است که در SAFPS هم دیدیم: وقتی فقط CRPS کلی را نگاه می‌کنیم، روش‌های tail-focused معمولاً کمی هزینه می‌دهند. ارزش واقعی باید در معیارهای دم، VaR، Expected Shortfall و کالیبراسیون ظاهر شود.
+
+تصمیم و قدم بعدی
+
+می‌رویم سراغ SC-twCRPS v0.5 — Financial Evaluation Benchmark.
+
+تغییرات کلیدی نسبت به v0.4:
+
+داده مصنوعی شبیه GARCH واقعی:
+volatility clustering
+regime switching (calm / stress)
+crash probability وابسته به state
+heteroscedasticity واقعی
+معماری شبکه یکسان برای همه روش‌ها (همان backbone).
+چهار loss:
+Gaussian CRPS (baseline)
+Student-t NLL (baseline مالی)
+Static tail-weighted CRPS (کنترل)
+SC-twCRPS (روش ما)
+معیارهای ارزیابی واقعی:
+Overall CRPS
+Tail CRPS (فقط |y| > quantile 0.90)
+VaR 95% و 99% coverage
+Expected Shortfall error
+Tail calibration gap
+Stress-period performance
+چند seed مستقل + گزارش میانگین ± std.
+
+الان کد کامل v0.5 را می‌سازم و روی چند seed اجرا می‌کنم تا ببینیم آیا SC-twCRPS در معیارهای دم واقعاً برتری نشان می‌دهد یا نه.
+
+نسخه بعدی آماده شد:
+
+SC-twCRPS v1.0 — Gradient & Ablation Test
+
+دانلود:
+
+SC_twCRPS_v1_0_gradient_ablation.py
+
+هدف این نسخه دیگر بهبود مستقیم نیست؛ هدف این است بفهمیم مشکل دقیقاً کجاست.
+
+چهار آزمایش:
+
+StudentT
+Loss = Student-t NLL
+SC_only
+Loss = SC-twCRPS
+Hybrid
+Loss = Student-t NLL + 0.05 * SC-twCRPS
+SC_NoState
+Loss = SC-twCRPS بدون volatility state
+
+خروجی:
+
+GradNorm
+CRPS
+VaR95
+VaR99
+
+این تست سه سؤال را جواب می‌دهد:
+
+سؤال ۱
+
+آیا SC-twCRPS اصلاً gradient مفید می‌دهد؟
+
+با:
+
+GradNorm
+
+مشخص می‌شود.
+
+سؤال ۲
+
+آیا خود SC-twCRPS می‌تواند مدل را آموزش دهد؟
+
+با:
+
+SC_only
+
+مشخص می‌شود.
+
+سؤال ۳
+
+آیا state بیرونی واقعاً کمک می‌کند؟
+
+مقایسه:
+
+SC_only
+vs
+SC_NoState
+
+بعد از این خروجی، تصمیم علمی راحت‌تر می‌شود:
+
+اگر SC_only بد باشد ولی Hybrid خوب شود → ایده به عنوان calibration term ارزش دارد.
+اگر SC_only و Hybrid هر دو ضعیف باشند → احتمالاً این مسیر ارزش ادامه ندارد.
+اگر SC_NoState بهتر باشد → خود volatility weighting مشکل دارد.
+
+این تست احتمالاً آخرین تست تشخیصی قبل از تصمیم برای ادامه یا تغییر ایده است. 
+
+SC_twCRPS_v1_0_gradient_ablation.py
+Code
+(base) alien-hawk@alien-hawk-LOQ-15IRH8:~/Desktop/PEDC$ /home/alien-hawk/anaconda3/bin/python /home/alien-hawk/Desktop/PEDC/CF-CRPS/SC_twCRPS.py
+
+ StudentT
+CRPS 0.7777900338172913
+VaR95 0.9172000050544739
+VaR99 0.9625200033187866
+GradNorm 1.244248091802001
+Traceback (most recent call last):
+  File "/home/alien-hawk/Desktop/PEDC/CF-CRPS/SC_twCRPS.py", line 229, in <module>
+    run(method,seed)
+    ~~~^^^^^^^^^^^^^
+  File "/home/alien-hawk/Desktop/PEDC/CF-CRPS/SC_twCRPS.py", line 199, in run
+    loss.backward()
+    ~~~~~~~~~~~~~^^
+  File "/home/alien-hawk/anaconda3/lib/python3.14/site-packages/torch/_tensor.py", line 623, in backward
+    torch.autograd.backward(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        self, gradient, retain_graph, create_graph, inputs=inputs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/alien-hawk/anaconda3/lib/python3.14/site-packages/torch/autograd/__init__.py", line 395, in backward
+    _engine_run_backward(
+    ~~~~~~~~~~~~~~~~~~~~^
+        tensors,
+        ^^^^^^^^
+    ...<5 lines>...
+        accumulate_grad=True,
+        ^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/alien-hawk/anaconda3/lib/python3.14/site-packages/torch/autograd/graph.py", line 979, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        t_outputs, *args, **kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )  # Calls into the C++ engine to run the backward pass
+    ^
+RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn
+(base) alien-hawk@alien-hawk-LOQ-15IRH8:~/Desktop/PEDC$ 
+
+خطا کاملاً مشخص است و اتفاقاً یک نکته مهم درباره خود loss به ما نشان داد.
+
+خطا:
+
+RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn
+
+یعنی در حالت:
+
+SC_only
+
+تابع loss به پارامترهای شبکه وصل نیست و PyTorch نمی‌تواند backward انجام دهد.
+
+علت:
+
+در کد قبلی:
+
+dist.sample()
+
+برای Student-t استفاده شده بود.
+
+sample() یک نمونه تصادفی جدا از گراف محاسباتی می‌سازد؛ یعنی:
+
+mu,sigma → sample ❌ (gradient قطع می‌شود)
+
+بنابراین:
+
+SC_loss → backward
+
+امکان‌پذیر نیست.
+
+اصلاح:
+
+باید از:
+
+dist.sample()
+
+به:
+
+dist.rsample()
+
+تغییر کنیم.
+
+rsample() از reparameterization trick استفاده می‌کند:
+
+$$ x=\mu+\sigma\epsilon $$
+
+و gradient را حفظ می‌کند.
+
+نسخه اصلاح‌شده:
+
+SC_twCRPS_v1_0_gradient_ablation_fixed.py
+
+این نسخه همان تست قبلی را انجام می‌دهد:
+
+StudentT
+SC_only
+Hybrid
+SC_NoState
+
+ولی این بار SC_only واقعاً آموزش داده می‌شود.
+
+این تست از نظر تحقیقاتی مهم‌تر از تست‌های قبلی است، چون اگر SC_only بعد از این اصلاح:
+
+gradient ضعیف داشته باشد → خود loss مشکل دارد.
+gradient خوب ولی عملکرد ضعیف داشته باشد → weighting مشکل دارد.
+Hybrid بهتر شود → ایده calibration term ارزش دارد.
+
+خروجی جدید را بفرست. این نتیجه تعیین می‌کند SC-twCRPS را ادامه بدهیم یا مسیر را تغییر دهیم. 
+
+SC_twCRPS_v1_0_gradient_ablation_fixed.py
+Code
+(base) alien-hawk@alien-hawk-LOQ-15IRH8:~/Desktop/PEDC$ /home/alien-hawk/anaconda3/bin/python /home/alien-hawk/Desktop/PEDC/CF-CRPS/SC_twCRPS.py
+
+ StudentT
+CRPS 0.7777900338172913
+VaR95 0.9172000050544739
+VaR99 0.9625200033187866
+GradNorm 1.244248091802001
+
+ SC_only
+CRPS 2.7412159919738768
+VaR95 0.9608000040054321
+VaR99 0.9662400007247924
+GradNorm 1.8059750454500318
+
+ Hybrid
+CRPS 0.7768022179603576
+VaR95 0.9183599948883057
+VaR99 0.961840009689331
+GradNorm 1.2558307990431785
+
+ SC_NoState
+CRPS 2.741199493408203
+VaR95 0.9608000040054321
+VaR99 0.9662400007247924
+GradNorm 1.2004179401323198
+(base) alien-hawk@alien-hawk-LOQ-15IRH8:~/Desktop/PEDC$ 
+
+این نتیجه v1.0 از نظر تشخیصی خیلی ارزشمند است. این بار واقعاً فهمیدیم مشکل کجاست. بیایید بدون تعصب تحلیل کنیم.
+
+نتیجه:
+
+Method	CRPS	VaR95	VaR99	GradNorm
+StudentT	0.77779	0.91720	0.96252	1.244
+SC_only	2.74122	0.96080	0.96624	1.806
+Hybrid	0.77680	0.91836	0.96184	1.256
+SC_NoState	2.74120	0.96080	0.96624	1.200
+1) مهم‌ترین کشف: SC-twCRPS gradient دارد
+
+قبلاً نمی‌دانستیم مشکل از:
+
+خود loss
+یا قطع شدن gradient
+
+است.
+
+الان:
+
+SC_only GradNorm = 1.806
+
+یعنی loss واقعاً به شبکه وصل است.
+
+پس مشکل قبلی حل شد.
+
+2) اما SC_only عملاً مدل بدی می‌سازد
+
+CRPS:
+
+Student-t:
+
+0.777
+
+SC_only:
+
+2.741
+
+این اختلاف بسیار بزرگ است.
+
+یعنی اگر فقط SC-twCRPS را optimize کنیم، مدل distribution خوبی یاد نمی‌گیرد.
+
+این نتیجه مهم است.
+
+3) Hybrid تقریباً همان Student-t شده
+
+نتیجه:
+
+Student-t:
+
+0.777790
+
+Hybrid:
+
+0.776802
+
+بهبود:
+
+حدود:
+
+0.12%
+
+یعنی بسیار کوچک.
+
+ولی نکته مثبت:
+
+Hybrid خراب نکرده.
+
+یعنی SC term در کنار NLL می‌تواند بدون آسیب جدی اضافه شود.
+
+4) State بیرونی فعلاً هیچ نقشی ندارد
+
+مقایسه:
+
+SC_only:
+
+2.741215
+
+SC_NoState:
+
+2.741199
+
+تقریباً برابر.
+
+یعنی:
+
+volatility weighting
+
+در این طراحی چیزی اضافه نکرده.
+
+این یک علامت مهم است.
+
+نتیجه کلی پروژه تا اینجا
+
+اگر یک مقاله‌نویس سخت‌گیر نگاه کند:
+
+ادعای اولیه:
+
+"SC-twCRPS یک loss جدید بهتر از CRPS/Student-t می‌سازد"
+
+❌ فعلاً اثبات نشده.
+
+چیزی که ثابت شده:
+
+SC-twCRPS می‌تواند به عنوان یک regularizer کوچک کنار Student-t استفاده شود.
+
+اما:
+
+برتری بزرگ ندارد.
+state conditioning فعلاً ارزش افزوده نشان نداده.
+الان چه کار منطقی است؟
+
+من دیگر روی SC-twCRPS خام زمان نمی‌گذارم.
+
+دو مسیر داریم:
+
+مسیر A (ادامه همین ایده)
+
+تغییر هدف:
+
+نه loss اصلی، بلکه:
+
+Tail Calibration Regularizer
+
+یعنی:
+
+$$ Loss = StudentT-NLL+ \lambda R_{tail} $$
+
+اما باید R را بهتر کنیم.
+
+مشکل فعلی:
+
+SC فقط خطای tail را فشار می‌دهد.
+
+مدل می‌تواند با بزرگ کردن uncertainty یا رفتارهای ساده جواب بدهد.
+
+مسیر B (به نظر من قوی‌تر)
+
+از چیزی که یاد گرفتیم استفاده کنیم و ایده را تغییر دهیم:
+
+به جای وزن دادن loss:
+
+یک learnable tail calibration head بسازیم.
+
+معماری:
+
+Backbone
+   |
+   +---- mu
+   |
+   +---- sigma
+   |
+   +---- tail adjustment
+
+یعنی شبکه خودش یاد بگیرد:
+
+"در این regime چقدر باید tail سنگین‌تر شود."
+
+اما با constraint که propriety خراب نشود.
+
+این از نظر مقاله‌ای جذاب‌تر است.
+
+نظر فعلی من:
+
+SC-twCRPS به شکل فعلی را متوقف نمی‌کنم، ولی دیگر انتظار ندارم یک loss برنده باشد.
+
+بهترین نتیجه‌ای که گرفتیم این است:
+
+Student-t تقریباً تمام کار اصلی را انجام می‌دهد؛ چیزی که کم داریم یک مکانیزم adaptive tail calibration است، نه یک loss ساده‌تر.
+
+قدم بعدی منطقی می‌تواند طراحی نسخه v2.0: Adaptive Tail Calibration Layer باشد که از تجربه SAFPS و SC-twCRPS استفاده کند ولی مشکل propriety را نداشته باشد.
