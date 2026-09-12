@@ -1,6 +1,7 @@
 *.json
 *.csv
-
+*.pth
+*.pt
 # alpha_system
 __pycache__/
 *.pyc
