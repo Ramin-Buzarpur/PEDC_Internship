@@ -1,9 +1,33 @@
-*.json
-*.csv
-*.pth
-*.pt
-# alpha_system
+# --- Node / JS ---
+node_modules/
+dist/
+build/
+*.log
+
+# --- Python ---
 __pycache__/
 *.pyc
-alpha_system/data_cache/
-alpha_system/outputs/run.log
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# --- ML artifacts / heavy generated data ---
+*.pth
+*.pt
+*.npz
+*.npz.bak
+*.pkl
+*.h5
+*.onnx
+data_cache/
+outputs/models/
+outputs/*.csv
+
+# --- Editors / OS ---
+.DS_Store
+Thumbs.db
+
+# --- Secrets ---
+.env
+*.key

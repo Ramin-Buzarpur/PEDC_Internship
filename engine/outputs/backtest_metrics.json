@@ -1,0 +1,58 @@
+[
+  {
+    "name": "PEDC Alpha (Core+Satellite)",
+    "total_return": 1.797180414199829,
+    "cagr": 0.12870689279447567,
+    "sharpe": 0.870260439669544,
+    "sortino": 0.9735958710087115,
+    "max_drawdown": -0.2709694118345265,
+    "win_rate_daily": 0.55908453993461,
+    "ann_vol": 0.15273132961142083,
+    "avg_gross_leverage": 0.8013845086097717,
+    "avg_turnover_daily": 0.05477413661131439,
+    "breakeven_cost_bps": 48.12475386233348,
+    "calmar": 0.4749867961962932
+  },
+  {
+    "name": "Core trend-only",
+    "total_return": 2.7490644454956055,
+    "cagr": 0.16812261278378848,
+    "sharpe": 0.920293385433814,
+    "sortino": 1.0593684044980272,
+    "max_drawdown": -0.31526158097011137,
+    "win_rate_daily": 0.5595516113965436,
+    "ann_vol": 0.1884100733127174,
+    "avg_gross_leverage": 1.0,
+    "avg_turnover_daily": 0.01843289667862206,
+    "breakeven_cost_bps": 186.55353619931836,
+    "calmar": 0.5332797363587651
+  },
+  {
+    "name": "Alpha satellite-only",
+    "total_return": -0.2596622705459595,
+    "cagr": -0.0341850527533234,
+    "sharpe": -0.43006298448212393,
+    "sortino": -0.4409926480337366,
+    "max_drawdown": -0.289099761800808,
+    "win_rate_daily": 0.4950957496496964,
+    "ann_vol": 0.07428538988282767,
+    "avg_gross_leverage": 0.9860009551048279,
+    "avg_turnover_daily": 0.223604001202551,
+    "breakeven_cost_bps": -2.8334958324606143,
+    "calmar": -0.11824656146509442
+  },
+  {
+    "name": "Buy&Hold equal-weight",
+    "total_return": 3.257960796356201,
+    "cagr": 0.18564123939289767,
+    "sharpe": 0.9522780337961154,
+    "sortino": 1.1083377417128562,
+    "max_drawdown": -0.32484273887292814,
+    "win_rate_daily": 0.5609528257823447,
+    "ann_vol": 0.20012926757316207,
+    "avg_gross_leverage": 1.0,
+    "avg_turnover_daily": 0.0,
+    "breakeven_cost_bps": Infinity,
+    "calmar": 0.5714803416477681
+  }
+]

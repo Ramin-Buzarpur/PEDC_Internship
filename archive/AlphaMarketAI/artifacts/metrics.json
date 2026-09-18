@@ -1,0 +1,27 @@
+{
+  "total_return": 0.003937110614243622,
+  "sharpe": 0.708947749579345,
+  "max_drawdown": -0.023628112993226202,
+  "win_rate": 0.45454545454545453,
+  "observations": 11,
+  "device": "cpu",
+  "data_mode": "synthetic",
+  "latest_actions": {
+    "SYN000": {
+      "action": "SELL",
+      "confidence": 0.4375
+    },
+    "SYN001": {
+      "action": "SELL",
+      "confidence": 0.5
+    },
+    "SYN002": {
+      "action": "SELL",
+      "confidence": 0.4375
+    },
+    "SYN003": {
+      "action": "BUY",
+      "confidence": 0.75
+    }
+  }
+}
