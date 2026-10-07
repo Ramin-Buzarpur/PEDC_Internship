@@ -34,3 +34,9 @@ Thumbs.db
 
 # --- dataset ---
 /dataset
+
+# --- codes/ (EUR-USD research scripts): generated/downloaded data, never source ---
+codes/data/
+codes/dukascopy_raw_days/
+codes/D:\\YahooCrypto/
+codes/.vscode/
