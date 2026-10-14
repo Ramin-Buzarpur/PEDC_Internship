@@ -194,9 +194,16 @@ def train(
     epochs: int = 30,
     batch_size: int = 128,
     lr: float = 2e-4,
+    csv_path: str = HOURLY_CSV,
+    checkpoint_path: str = CHECKPOINT_PATH,
+    log_ret_override: np.ndarray | None = None,
+    bars_per_day_override: float | None = None,
 ) -> None:
-    print(f"Loading hourly data from {HOURLY_CSV} ...")
-    log_ret, bars_per_day = load_hourly_log_returns()
+    if log_ret_override is not None:
+        log_ret, bars_per_day = log_ret_override, bars_per_day_override
+    else:
+        print(f"Loading hourly data from {csv_path} ...")
+        log_ret, bars_per_day = load_hourly_log_returns(csv_path)
     horizon_len = int(round(bars_per_day * horizon_multiplier))
     print(f"bars/day ~= {bars_per_day:.1f}  ->  horizon_len (3 days) = {horizon_len} bars, context_len = {context_len} bars")
 
@@ -247,9 +254,9 @@ def train(
     )
     torch.save(
         {"model_state": model.state_dict(), "config": asdict(config)},
-        CHECKPOINT_PATH,
+        checkpoint_path,
     )
-    print(f"\nSaved checkpoint: {CHECKPOINT_PATH}")
+    print(f"\nSaved checkpoint: {checkpoint_path}")
 
 
 def load_model_and_config(checkpoint_path: str = CHECKPOINT_PATH) -> tuple[DenoiseNet, DiffusionConfig]:
